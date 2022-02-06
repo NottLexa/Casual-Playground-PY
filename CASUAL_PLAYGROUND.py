@@ -1,4 +1,5 @@
 import pygame
+import math
 #from core import nle as engine
 #from core import compiler as cpc
 import core.nle as engine
@@ -17,7 +18,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #1
+  Alexey Kozhanov                                                                      #2
                                                                                DVLP BUILD
 ''')
 
@@ -30,18 +31,106 @@ deltatime = 0
 #endregion
 
 #region [SETTINGS]
+board_width = 32
+board_height = 32
+linecolor_infield = 'gray10'
+linecolor_outfield = 'gray40'
+#endregion
+
+#region [ENTITY]
+#region [FIELD BOARD]
+def FieldBoard_create(target):
+    target.viewx = 0
+    target.viewy = 0
+    target.viewscale = 16
+    target.keys = {'up': False,
+                   'left': False,
+                   'right': False,
+                   'down': False}
+    target.cameraspeed = 64
+
+def FieldBoard_step(target):
+    target.viewx += deltatime * target.cameraspeed * (target.keys['right']-target.keys['left'])
+    target.viewy += deltatime * target.cameraspeed * (target.keys['down']-target.keys['up'])
+
+def FieldBoard_draw(target, surface: pygame.Surface):
+    cellsize = target.viewscale+1
+    sx, ox = divmod(-target.viewx, cellsize)
+    lx = math.ceil(WIDTH/cellsize)
+    sy, oy = divmod(-target.viewy, cellsize)
+    ly = math.ceil(HEIGHT/cellsize)
+    for ix in range(-1, lx):
+        for iy in range(-1, ly):
+            cellx = ox+(ix*cellsize)
+            celly = oy+(iy*cellsize)
+            if not (cellx+target.viewx < -1 or celly+target.viewy < -1
+                 or cellx+target.viewx+cellsize > (cellsize*board_width)
+                 or celly+target.viewy+cellsize > (cellsize*board_height)): # в пределах поля
+                pygame.draw.rect(surface, (109, 183, 65), (cellx, celly, target.viewscale, target.viewscale))
+
+    for ix in range(-1, lx):
+        linex = ox+(ix*cellsize)
+        starty = engine.clamp(0, -target.viewy, -target.viewy+(cellsize*board_height))
+        endy = engine.clamp(HEIGHT, -target.viewy, -target.viewy+(cellsize*board_height))
+        if not (linex+target.viewx < 0 or linex+target.viewx > (cellsize*board_width)): # в пределах поля
+            pygame.draw.line(surface, linecolor_infield, (linex-1, starty-1), (linex-1, endy-1))
+            if (starty-2 > 0):
+                pygame.draw.line(surface, linecolor_outfield, (linex-1, 0), (linex-1, starty-2))
+            if (HEIGHT > endy):
+                pygame.draw.line(surface, linecolor_outfield, (linex-1, endy), (linex-1, HEIGHT))
+        else:
+            pygame.draw.line(surface, linecolor_outfield, (linex-1, 0), (linex-1, HEIGHT-1))
+
+    for iy in range(-1, ly):
+        liney = oy+(iy*cellsize)
+        startx = engine.clamp(0, -target.viewx, -target.viewx+(cellsize*board_width))
+        endx = engine.clamp(WIDTH, -target.viewx, -target.viewx+(cellsize*board_width))
+        if not (liney+target.viewy < 0 or liney+target.viewy > (cellsize*board_height)): # в пределах поля
+            pygame.draw.line(surface, linecolor_infield, (startx-1, liney-1), (endx-1, liney-1))
+            if (startx-2 > 0):
+                pygame.draw.line(surface, linecolor_outfield, (0, liney-1), (startx-2, liney-1))
+            if (WIDTH > endx):
+                pygame.draw.line(surface, linecolor_outfield, (endx, liney-1), (WIDTH, liney-1))
+        else:
+            pygame.draw.line(surface, linecolor_outfield, (0, liney-1), (WIDTH-1, liney-1))
+
+def FieldBoard_kb_pressed(target, buttonid):
+    setkey = True
+    if buttonid in (pygame.K_UP, pygame.K_w):
+        target.keys['up'] = setkey
+    if buttonid in (pygame.K_LEFT, pygame.K_a):
+        target.keys['left'] = setkey
+    if buttonid in (pygame.K_RIGHT, pygame.K_d):
+        target.keys['right'] = setkey
+    if buttonid in (pygame.K_DOWN, pygame.K_s):
+        target.keys['down'] = setkey
+
+def FieldBoard_kb_released(target, buttonid):
+    setkey = False
+    if buttonid in (pygame.K_UP, pygame.K_w):
+        target.keys['up'] = setkey
+    if buttonid in (pygame.K_LEFT, pygame.K_a):
+        target.keys['left'] = setkey
+    if buttonid in (pygame.K_RIGHT, pygame.K_d):
+        target.keys['right'] = setkey
+    if buttonid in (pygame.K_DOWN, pygame.K_s):
+        target.keys['down'] = setkey
+
+EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step, event_draw=FieldBoard_draw,
+                              event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released)
+#endregion
+#endregion
+
+#region [INSTANCE]
+field = EntFieldBoard.instance()
 #endregion
 
 #region [ROOM]
 room_mainmenu = engine.Room()
 
-engine.rooms.change_current_room(room_mainmenu)
-#endregion
+room_field = engine.Room([EntFieldBoard])
 
-#region [ENTITY]
-#endregion
-
-#region [INSTANCE]
+engine.rooms.change_current_room(room_field)
 #endregion
 
 #region [LOOP]
@@ -67,5 +156,5 @@ while game_running:
     engine.rooms.current_room.do_step(screen.get_canvas())
     screen.draw_screen()
     pygame.display.flip()
-    deltatime = clock.tick()
+    deltatime = clock.tick()/1000
 #endregion
