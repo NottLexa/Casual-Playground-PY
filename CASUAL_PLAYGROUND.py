@@ -3,7 +3,7 @@ import math
 #from core import nle as engine
 #from core import compiler as cpc
 import core.nle as engine
-import core.compiler as cpc
+import core.compiler as comp
 
 #region [ИНИЦИАЛИЗАЦИЯ]
 
@@ -18,7 +18,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #2
+  Alexey Kozhanov                                                                      #3
                                                                                DVLP BUILD
 ''')
 
@@ -31,6 +31,11 @@ deltatime = 0
 #endregion
 
 #region [SETTINGS]
+objdata = {}
+with open('core/corecontent/grass.mod', encoding='utf8') as g:
+    objdata['grass'] = comp.get(g.read())
+idlist = ['grass']
+print(objdata[idlist[0]])
 board_width = 32
 board_height = 32
 linecolor_infield = 'gray10'
@@ -48,6 +53,7 @@ def FieldBoard_create(target):
                    'right': False,
                    'down': False}
     target.cameraspeed = 64
+    target.board = [[0]*board_width for _ in range(board_height)]
 
 def FieldBoard_step(target):
     target.viewx += deltatime * target.cameraspeed * (target.keys['right']-target.keys['left'])
@@ -56,8 +62,10 @@ def FieldBoard_step(target):
 def FieldBoard_draw(target, surface: pygame.Surface):
     cellsize = target.viewscale+1
     sx, ox = divmod(-target.viewx, cellsize)
+    sx = int(sx)
     lx = math.ceil(WIDTH/cellsize)
     sy, oy = divmod(-target.viewy, cellsize)
+    sy = int(sy)
     ly = math.ceil(HEIGHT/cellsize)
     for ix in range(-1, lx):
         for iy in range(-1, ly):
@@ -66,7 +74,9 @@ def FieldBoard_draw(target, surface: pygame.Surface):
             if not (cellx+target.viewx < -1 or celly+target.viewy < -1
                  or cellx+target.viewx+cellsize > (cellsize*board_width)
                  or celly+target.viewy+cellsize > (cellsize*board_height)): # в пределах поля
-                pygame.draw.rect(surface, (109, 183, 65), (cellx, celly, target.viewscale, target.viewscale))
+                boardx, boardy = sx+ix, sy+iy
+                celldata = objdata[idlist[target.board[boardy][boardx]]]
+                pygame.draw.rect(surface, celldata['notexture'], (cellx, celly, target.viewscale, target.viewscale))
 
     for ix in range(-1, lx):
         linex = ox+(ix*cellsize)

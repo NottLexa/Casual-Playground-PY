@@ -107,10 +107,3 @@ def get(code: str):
         l += 1
 
     return ret
-
-with open('corecontent\\grass.mod', 'r', encoding='utf8') as f:
-    a = f.read()
-
-b = get(a)
-
-print(b)
