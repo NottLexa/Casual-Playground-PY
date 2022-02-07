@@ -22,8 +22,9 @@ def first_string(code: str, start: int):
         l += 1
     return indexes[0], indexes[1]+1, write
 
-def get_allparts(code: str):
-    ret = {'type': 'CELL',
+def get(code: str):
+    ret = {'version': 0,
+           'type': 'CELL',
            'name': 'Cell',
            'desc': 'No description given.',
            'notexture': [255, 255, 255],
@@ -34,7 +35,17 @@ def get_allparts(code: str):
     l = 0
     wstart = 0
     while l < len(code):
-        if code[l:l+4] == 'CELL':
+        if code[l:l+7] == 'VERSION':
+            l += 7
+            while code[l] == ' ':
+                l += 1
+            write = ''
+            while code[l] != '\n':
+                write += code[l]
+                l += 1
+            ret['version'] = int(write)
+
+        elif code[l:l+4] == 'CELL':
             l += 4
             ret['type'] = 'CELL'
             write_to = False
@@ -48,6 +59,7 @@ def get_allparts(code: str):
                     write_to = True
                 else:
                     ret['desc'] = string
+
         elif code[l:l+9] == 'NOTEXTURE':
             l += 9
             write = ''
@@ -63,6 +75,7 @@ def get_allparts(code: str):
                 l += 1
             if write != '':
                 ret['notexture'][writeind] = int(float(write))
+
         if code[l:l+12] == 'LOCALIZATION':
             l += 12
             while code[l] != '\n':
@@ -98,6 +111,6 @@ def get_allparts(code: str):
 with open('corecontent\\grass.mod', 'r', encoding='utf8') as f:
     a = f.read()
 
-b = get_allparts(a)
+b = get(a)
 
 print(b)

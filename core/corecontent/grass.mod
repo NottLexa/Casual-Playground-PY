@@ -1,3 +1,5 @@
+VERSION 1
+
 CELL "Grass" "An empty cell that doesn't anything at all."
 
 NOTEXTURE 109 183 65
