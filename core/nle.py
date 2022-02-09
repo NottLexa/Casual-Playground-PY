@@ -129,8 +129,7 @@ def get_screensize(videoinfo) -> typing.Tuple[int, int]:
     return (videoinfo.current_w, videoinfo.current_h)
 
 
-def load_image(name, dirname='data'):
-    path = os.path.join(dirname, name)
+def load_image(path):
     if not os.path.isfile(path):
         raise RuntimeError
     img = pygame.image.load(path)
