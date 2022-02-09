@@ -18,7 +18,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #4
+  Alexey Kozhanov                                                                      #5
                                                                                DVLP BUILD
 ''')
 
@@ -39,14 +39,23 @@ with open('core/corecontent/grass.mod', encoding='utf8') as g:
     objdata['grass'] = comp.get(g.read())
 idlist = ['grass']
 print(objdata[idlist[0]])
-board_width = 32
-board_height = 32
-linecolor_infield = 'gray10'
-linecolor_outfield = 'gray40'
 #endregion
 
 #region [ENTITY]
 #region [FIELD BOARD]
+def FieldBoard_user_draw_board(target):
+    bw, bh = target.board_width, target.board_height
+    cellsize = target.viewscale + 1
+    surface = pygame.Surface((cellsize*bw+1, cellsize*bh+1), pygame.SRCALPHA)
+    surface.fill(target.linecolor_infield)
+    for ix in range(bw):
+        for iy in range(bh):
+            cx, cy = ix*cellsize, iy*cellsize
+            celldata = objdata[idlist[target.board[iy][ix]]]
+            pygame.draw.rect(surface, celldata['notexture'], (cx+1, cy+1, target.viewscale, target.viewscale))
+
+    return surface
+
 def FieldBoard_create(target):
     target.viewx = 0
     target.viewy = 0
@@ -57,63 +66,73 @@ def FieldBoard_create(target):
                    'down': False,
                    'speedup':False,
                    'speeddown':False}
-    target.cameraspeed = 64
-    target.board = [[0]*board_width for _ in range(board_height)]
+    target.cameraspeed = 6
+    target.mincamspeed = 3
+    target.maxcamspeed = 12
+    target.board_width = 32
+    target.board_height = 32
+    target.linecolor_infield = 'gray10'
+    target.linecolor_outfield = 'gray40'
+    target.board = [[0]*target.board_width for _ in range(target.board_height)]
+
+    target.surfaces = {'board': FieldBoard_user_draw_board(target)}
 
 def FieldBoard_step(target):
-    target.viewx += deltatime * target.cameraspeed * (target.keys['right']-target.keys['left'])
-    target.viewy += deltatime * target.cameraspeed * (target.keys['down']-target.keys['up'])
+    target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
+    target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
 
-    target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 8, 512)
+    #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
 
 def FieldBoard_draw(target, surface: pygame.Surface):
     cellsize = target.viewscale+1
-    sx, ox = divmod(-target.viewx, cellsize)
-    sx = int(sx)
+    ox = -target.viewx%cellsize
+    oy = -target.viewy%cellsize
     lx = math.ceil(WIDTH/cellsize)
-    sy, oy = divmod(-target.viewy, cellsize)
-    sy = int(sy)
     ly = math.ceil(HEIGHT/cellsize)
-    for ix in range(-1, lx):
-        for iy in range(-1, ly):
-            cellx = ox+(ix*cellsize)
-            celly = oy+(iy*cellsize)
-            if not (cellx+target.viewx < -1 or celly+target.viewy < -1
-                 or cellx+target.viewx+cellsize > (cellsize*board_width)
-                 or celly+target.viewy+cellsize > (cellsize*board_height)): # в пределах поля
-                boardx, boardy = ix-sx, iy-sy
-                celldata = objdata[idlist[target.board[boardy][boardx]]]
-                pygame.draw.rect(surface, celldata['notexture'], (cellx, celly, target.viewscale, target.viewscale))
+
+    if target.viewx > 0:
+        realx = -target.viewx-1
+    else:
+        realx = -target.viewx
+    if target.viewy > 0:
+        realy = -target.viewy-1
+    else:
+        realy = -target.viewy
+    surface.blit(target.surfaces['board'], (realx, realy))
 
     for ix in range(-1, lx):
         linex = ox+(ix*cellsize)
-        starty = engine.clamp(0, -target.viewy, -target.viewy+(cellsize*board_height))
-        endy = engine.clamp(HEIGHT, -target.viewy, -target.viewy+(cellsize*board_height))
-        if not (linex+target.viewx < 0 or linex+target.viewx > (cellsize*board_width)): # в пределах поля
-            pygame.draw.line(surface, linecolor_infield, (linex-1, starty-1), (linex-1, endy-1))
+        starty = engine.clamp(0, -target.viewy, -target.viewy+(cellsize*target.board_height))
+        endy = engine.clamp(HEIGHT, -target.viewy, -target.viewy+(cellsize*target.board_height))
+        if not (linex+target.viewx < 0 or linex+target.viewx > (cellsize*target.board_width)): # в пределах поля
             if (starty-2 > 0):
-                pygame.draw.line(surface, linecolor_outfield, (linex-1, 0), (linex-1, starty-2))
+                pygame.draw.line(surface, target.linecolor_outfield, (linex, 1), (linex, starty-1))
             if (HEIGHT > endy):
-                pygame.draw.line(surface, linecolor_outfield, (linex-1, endy), (linex-1, HEIGHT))
+                pygame.draw.line(surface, target.linecolor_outfield, (linex, endy+1), (linex, HEIGHT+1))
         else:
-            pygame.draw.line(surface, linecolor_outfield, (linex-1, 0), (linex-1, HEIGHT-1))
+            pygame.draw.line(surface, target.linecolor_outfield, (linex, 1), (linex, HEIGHT))
 
     for iy in range(-1, ly):
         liney = oy+(iy*cellsize)
-        startx = engine.clamp(0, -target.viewx, -target.viewx+(cellsize*board_width))
-        endx = engine.clamp(WIDTH, -target.viewx, -target.viewx+(cellsize*board_width))
-        if not (liney+target.viewy < 0 or liney+target.viewy > (cellsize*board_height)): # в пределах поля
-            pygame.draw.line(surface, linecolor_infield, (startx-1, liney-1), (endx-1, liney-1))
+        startx = engine.clamp(0, -target.viewx, -target.viewx+(cellsize*target.board_width))
+        endx = engine.clamp(WIDTH, -target.viewx, -target.viewx+(cellsize*target.board_width))
+        if not (liney+target.viewy < 0 or liney+target.viewy > (cellsize*target.board_height)): # в пределах поля
             if (startx-2 > 0):
-                pygame.draw.line(surface, linecolor_outfield, (0, liney-1), (startx-2, liney-1))
+                pygame.draw.line(surface, target.linecolor_outfield, (1, liney), (startx-1, liney))
             if (WIDTH > endx):
-                pygame.draw.line(surface, linecolor_outfield, (endx, liney-1), (WIDTH, liney-1))
+                pygame.draw.line(surface, target.linecolor_outfield, (endx+1, liney), (WIDTH+1, liney))
         else:
-            pygame.draw.line(surface, linecolor_outfield, (0, liney-1), (WIDTH-1, liney-1))
+            pygame.draw.line(surface, target.linecolor_outfield, (1, liney), (WIDTH, liney))
 
-    txt = font_debug.render(f'Speed: {target.cameraspeed}', False, 'white')
+    txt = font_debug.render(f'Speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
+
+    #for ix in range(0, WIDTH, 16+1):
+    #    for iy in range(0, HEIGHT, 16+1):
+    #        surface.set_at((int(-target.viewx%cellsize)+ix, int(-target.viewy%cellsize)+iy), 'red')
+
+    #surface.set_at((int(-target.viewx), int(-target.viewy)), 'aqua')
 
 def FieldBoard_kb_pressed(target, buttonid):
     setkey = True
@@ -126,9 +145,9 @@ def FieldBoard_kb_pressed(target, buttonid):
     if buttonid in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
     if buttonid == pygame.K_q:
-        target.keys['speeddown'] = setkey
+        target.cameraspeed = engine.clamp(target.cameraspeed-1, target.mincamspeed, target.maxcamspeed)
     if buttonid == pygame.K_e:
-        target.keys['speedup'] = setkey
+        target.cameraspeed = engine.clamp(target.cameraspeed+1, target.mincamspeed, target.maxcamspeed)
 
 def FieldBoard_kb_released(target, buttonid):
     setkey = False
@@ -140,16 +159,14 @@ def FieldBoard_kb_released(target, buttonid):
         target.keys['right'] = setkey
     elif buttonid in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
-    if buttonid == pygame.K_q:
-        target.keys['speeddown'] = setkey
-    if buttonid == pygame.K_e:
-        target.keys['speedup'] = setkey
 
 def FieldBoard_mouse_pressed(target, mousepos, buttonid):
     if buttonid == 4:
         target.viewscale = engine.clamp(target.viewscale-1, 2, 64)
+        target.surfaces['board'] = FieldBoard_user_draw_board(target)
     elif buttonid == 5:
         target.viewscale = engine.clamp(target.viewscale+1, 2, 64)
+        target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
 EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step, event_draw=FieldBoard_draw,
                               event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released,
