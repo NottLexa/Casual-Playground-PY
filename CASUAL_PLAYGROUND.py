@@ -18,7 +18,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #3
+  Alexey Kozhanov                                                                      #4
                                                                                DVLP BUILD
 ''')
 
@@ -28,9 +28,12 @@ WIDTH, HEIGHT = 16*scale, 9*scale
 screen = engine.Screen((WIDTH, HEIGHT), (WIDTH*2, HEIGHT*2), 0, True)
 clock = pygame.time.Clock()
 deltatime = 0
+
+pygame.init()
 #endregion
 
 #region [SETTINGS]
+font_debug = pygame.font.SysFont('calibri', 10)
 objdata = {}
 with open('core/corecontent/grass.mod', encoding='utf8') as g:
     objdata['grass'] = comp.get(g.read())
@@ -51,13 +54,17 @@ def FieldBoard_create(target):
     target.keys = {'up': False,
                    'left': False,
                    'right': False,
-                   'down': False}
+                   'down': False,
+                   'speedup':False,
+                   'speeddown':False}
     target.cameraspeed = 64
     target.board = [[0]*board_width for _ in range(board_height)]
 
 def FieldBoard_step(target):
     target.viewx += deltatime * target.cameraspeed * (target.keys['right']-target.keys['left'])
     target.viewy += deltatime * target.cameraspeed * (target.keys['down']-target.keys['up'])
+
+    target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 8, 512)
 
 def FieldBoard_draw(target, surface: pygame.Surface):
     cellsize = target.viewscale+1
@@ -74,7 +81,7 @@ def FieldBoard_draw(target, surface: pygame.Surface):
             if not (cellx+target.viewx < -1 or celly+target.viewy < -1
                  or cellx+target.viewx+cellsize > (cellsize*board_width)
                  or celly+target.viewy+cellsize > (cellsize*board_height)): # в пределах поля
-                boardx, boardy = sx+ix, sy+iy
+                boardx, boardy = ix-sx, iy-sy
                 celldata = objdata[idlist[target.board[boardy][boardx]]]
                 pygame.draw.rect(surface, celldata['notexture'], (cellx, celly, target.viewscale, target.viewscale))
 
@@ -104,6 +111,10 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         else:
             pygame.draw.line(surface, linecolor_outfield, (0, liney-1), (WIDTH-1, liney-1))
 
+    txt = font_debug.render(f'Speed: {target.cameraspeed}', False, 'white')
+    surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
+                       surface.get_height() - txt.get_height() - 2))
+
 def FieldBoard_kb_pressed(target, buttonid):
     setkey = True
     if buttonid in (pygame.K_UP, pygame.K_w):
@@ -114,20 +125,35 @@ def FieldBoard_kb_pressed(target, buttonid):
         target.keys['right'] = setkey
     if buttonid in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
+    if buttonid == pygame.K_q:
+        target.keys['speeddown'] = setkey
+    if buttonid == pygame.K_e:
+        target.keys['speedup'] = setkey
 
 def FieldBoard_kb_released(target, buttonid):
     setkey = False
     if buttonid in (pygame.K_UP, pygame.K_w):
         target.keys['up'] = setkey
-    if buttonid in (pygame.K_LEFT, pygame.K_a):
+    elif buttonid in (pygame.K_LEFT, pygame.K_a):
         target.keys['left'] = setkey
-    if buttonid in (pygame.K_RIGHT, pygame.K_d):
+    elif buttonid in (pygame.K_RIGHT, pygame.K_d):
         target.keys['right'] = setkey
-    if buttonid in (pygame.K_DOWN, pygame.K_s):
+    elif buttonid in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
+    if buttonid == pygame.K_q:
+        target.keys['speeddown'] = setkey
+    if buttonid == pygame.K_e:
+        target.keys['speedup'] = setkey
+
+def FieldBoard_mouse_pressed(target, mousepos, buttonid):
+    if buttonid == 4:
+        target.viewscale = engine.clamp(target.viewscale-1, 2, 64)
+    elif buttonid == 5:
+        target.viewscale = engine.clamp(target.viewscale+1, 2, 64)
 
 EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step, event_draw=FieldBoard_draw,
-                              event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released)
+                              event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released,
+                              event_mouse_pressed=FieldBoard_mouse_pressed)
 #endregion
 #endregion
 
