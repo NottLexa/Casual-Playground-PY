@@ -187,72 +187,72 @@ class Instance:
     def __init__(self, entity: Entity):
         self.entity = entity
         if self.entity.event_create is not None:
-            self.entity.event_create(target=self)
+            self.entity.event_create(self)
 
     def do_step(self):
         '''Выполнение шага'''
         if self.entity.event_step is not None:
-            self.entity.event_step(target=self)
+            self.entity.event_step(self)
 
     def do_step_before(self):
         '''Выполнение до-шага'''
         if self.entity.event_step_before is not None:
-            self.entity.event_step_before(target=self)
+            self.entity.event_step_before(self)
 
     def do_step_after(self):
         '''Выполнение после-шага'''
         if self.entity.event_step_after is not None:
-            self.entity.event_step_after(target=self)
+            self.entity.event_step_after(self)
 
     def do_draw(self, surface):
         '''Отрисовка'''
         if self.entity.event_draw is not None:
-            self.entity.event_draw(target=self, surface=surface)
+            self.entity.event_draw(self, surface)
 
     def do_draw_before(self, surface):
         '''До-отрисовка'''
         if self.entity.event_draw_before is not None:
-            self.entity.event_draw_before(target=self, surface=surface)
+            self.entity.event_draw_before(self, surface)
 
     def do_draw_after(self, surface):
         '''После-отрисовка'''
         if self.entity.event_draw_after is not None:
-            self.entity.event_draw_after(target=self, surface=surface)
+            self.entity.event_draw_after(self, surface)
 
     def do_room_start(self):
         '''Вход в комнату'''
         if self.entity.event_room_start is not None:
-            self.entity.event_room_start(target=self)
+            self.entity.event_room_start(self)
 
     def do_room_end(self):
         '''Выход из комнаты'''
         if self.entity.event_room_end is not None:
-            self.entity.event_room_end(target=self)
+            self.entity.event_room_end(self)
 
     def do_mouse_moved(self, mousepos):
         '''Движение мыши'''
         if self.entity.event_mouse_moved is not None:
-            self.entity.event_mouse_moved(target=self, mousepos=mousepos)
+            self.entity.event_mouse_moved(self, mousepos)
 
     def do_mouse_pressed(self, mousepos, buttonid):
         '''Нажатие кнопки мыши'''
         if self.entity.event_mouse_pressed is not None:
-            self.entity.event_mouse_pressed(target=self, mousepos=mousepos, buttonid=buttonid)
+            self.entity.event_mouse_pressed(self, mousepos, buttonid)
 
     def do_mouse_released(self, mousepos, buttonid):
         '''Отпускание кнопки мыши'''
         if self.entity.event_mouse_released is not None:
-            self.entity.event_mouse_released(target=self, mousepos=mousepos, buttonid=buttonid)
+            self.entity.event_mouse_released(self, mousepos, buttonid)
 
     def do_kb_pressed(self, buttonid):
         '''Нажатие кнопки мыши'''
         if self.entity.event_kb_pressed is not None:
-            self.entity.event_kb_pressed(target=self, buttonid=buttonid)
+            self.entity.event_kb_pressed(self, buttonid)
 
     def do_kb_released(self, buttonid):
         '''Отпускание кнопки мыши'''
         if self.entity.event_kb_released is not None:
-            self.entity.event_kb_released(target=self, buttonid=buttonid)
+            self.entity.event_kb_released(self, buttonid)
 
 
 class Room:
