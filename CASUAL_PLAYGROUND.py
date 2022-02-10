@@ -1,3 +1,6 @@
+import ntpath
+import os
+
 import pygame
 import math
 #from core import nle as engine
@@ -18,7 +21,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #5
+  Alexey Kozhanov                                                                      #6
                                                                                DVLP BUILD
 ''')
 
@@ -34,11 +37,44 @@ pygame.init()
 
 #region [SETTINGS]
 font_debug = pygame.font.SysFont('calibri', 10)
+
+idlist = []
 objdata = {}
-with open('core/corecontent/grass.mod', encoding='utf8') as g:
-    objdata['grass'] = comp.get(g.read())
-idlist = ['grass']
-print(objdata[idlist[0]])
+
+fullgamepath = os.getcwd()
+
+corefolder = ntpath.join(fullgamepath, 'core', 'corecontent')
+modsfolder = ntpath.join(fullgamepath, 'data', 'mods')
+
+coremods = os.listdir(corefolder)
+for m in coremods:
+    path = ntpath.join(corefolder, m)
+    if ntpath.isfile(path):
+        print(path)
+        if path[-4:] == '.mod':
+            with open(path, 'r', encoding='utf8') as f:
+                moddata = comp.get(f.read())
+            modname = m[:-4]
+            moddata['author'] = 'Casual Playground'
+            moddata['official'] = 1
+            objdata[modname] = moddata
+            idlist.append(modname)
+
+custommods = os.listdir(modsfolder)
+for folder in custommods:
+    currentmodfolder = ntpath.join(modsfolder, folder)
+    for m in currentmodfolder:
+        path = ntpath.join(currentmodfolder, m)
+        if ntpath.isfile(path):
+            if path[:-4] == '.mod':
+                with open(path, 'r', encoding='utf8') as f:
+                    moddata = comp.get(f.read())
+                modname = m[:-4]
+                moddata['author'] = folder
+                moddata['official'] = 0
+                objdata[modname] = moddata
+                idlist.append(modname)
+print(objdata)
 #endregion
 
 #region [ENTITY]
