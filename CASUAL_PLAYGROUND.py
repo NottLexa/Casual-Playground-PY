@@ -21,7 +21,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #9
+  Alexey Kozhanov                                                                     #10
                                                                                DVLP BUILD
 ''')
 
@@ -132,14 +132,15 @@ print(objdata)
 def FieldBoard_user_draw_board(target):
     bw, bh = target.board_width, target.board_height
     bordersize = round(target.viewscale/8)
-    cellsize = target.viewscale + bordersize
+    cellsize = target.viewscale
     surface = pygame.Surface((cellsize*bw+bordersize, cellsize*bh+bordersize), pygame.SRCALPHA)
     surface.fill(target.linecolor_infield)
     for ix in range(bw):
         for iy in range(bh):
             cx, cy = ix*cellsize, iy*cellsize
             celldata = objdata[idlist[target.board[iy][ix]]]
-            pygame.draw.rect(surface, celldata['notexture'], (cx+bordersize, cy+bordersize, target.viewscale, target.viewscale))
+            pygame.draw.rect(surface, celldata['notexture'], (cx+bordersize, cy+bordersize,
+                                                              target.viewscale-bordersize, target.viewscale-bordersize))
 
     return surface
 
@@ -172,7 +173,7 @@ def FieldBoard_step(target):
 
 def FieldBoard_draw(target, surface: pygame.Surface):
     bordersize = round(target.viewscale / 8)
-    cellsize = target.viewscale+bordersize
+    cellsize = target.viewscale
     ox = -target.viewx%cellsize
     oy = -target.viewy%cellsize
     lx = math.ceil(WIDTH/cellsize)
@@ -250,10 +251,22 @@ def FieldBoard_kb_released(target, key):
 
 def FieldBoard_mouse_pressed(target, mousepos, buttonid):
     if buttonid == 4:
-        target.viewscale = engine.clamp(target.viewscale-1, 2, 64)
+        oldvs = target.viewscale
+        target.viewscale = engine.clamp(target.viewscale-engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
+        newvs = target.viewscale
+
+        target.viewx = (target.viewx+(WIDTH//2))*newvs/oldvs - (WIDTH//2)
+        target.viewy = (target.viewy+(HEIGHT//2))*newvs/oldvs - (HEIGHT//2)
+
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
     elif buttonid == 5:
-        target.viewscale = engine.clamp(target.viewscale+1, 2, 64)
+        oldvs = target.viewscale
+        target.viewscale = engine.clamp(target.viewscale+engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
+        newvs = target.viewscale
+
+        target.viewx = (target.viewx+(WIDTH//2))*newvs/oldvs - (WIDTH//2)
+        target.viewy = (target.viewy+(HEIGHT//2))*newvs/oldvs - (HEIGHT//2)
+
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
 EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step, event_draw=FieldBoard_draw,
@@ -269,7 +282,6 @@ def FieldSUI_create(target):
 def FieldSUI_step(target):
     target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
 
-    print(target.show_step, target.show_menu, target.show_all)
     if round(target.show_step, 5) == 0:
         target.show_step = 0
     elif round(target.show_step, 5) == 1:
