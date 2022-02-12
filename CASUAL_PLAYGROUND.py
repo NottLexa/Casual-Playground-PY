@@ -21,7 +21,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #7
+  Alexey Kozhanov                                                                      #8
                                                                                DVLP BUILD
 ''')
 
@@ -73,12 +73,16 @@ fonts = {}
 
 fullgamepath = os.getcwd()
 
+font_debug = pygame.font.Font(None, fontsize)
 fontsfolder = ntpath.join(fullgamepath, 'data', 'fonts')
 fonts = load_fonts(fontsfolder)
+def get_font(font):
+    if font in fonts:
+        return fonts[font]
+    else:
+        return font_debug
 
 print(fonts)
-
-font_debug = pygame.font.Font(None, 16)
 
 corefolder = ntpath.join(fullgamepath, 'core', 'corecontent')
 modsfolder = ntpath.join(fullgamepath, 'data', 'mods')
@@ -206,7 +210,7 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         else:
             pygame.draw.line(surface, target.linecolor_outfield, (1, liney), (WIDTH, liney))
 
-    txt = fonts['default'].render(f'Speed: {2**target.cameraspeed}', False, 'white')
+    txt = get_font('default').render(f'Speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
 
