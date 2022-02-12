@@ -21,7 +21,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #8
+  Alexey Kozhanov                                                                      #9
                                                                                DVLP BUILD
 ''')
 
@@ -131,14 +131,15 @@ print(objdata)
 #region [FIELD BOARD]
 def FieldBoard_user_draw_board(target):
     bw, bh = target.board_width, target.board_height
-    cellsize = target.viewscale + 1
-    surface = pygame.Surface((cellsize*bw+1, cellsize*bh+1), pygame.SRCALPHA)
+    bordersize = round(target.viewscale/8)
+    cellsize = target.viewscale + bordersize
+    surface = pygame.Surface((cellsize*bw+bordersize, cellsize*bh+bordersize), pygame.SRCALPHA)
     surface.fill(target.linecolor_infield)
     for ix in range(bw):
         for iy in range(bh):
             cx, cy = ix*cellsize, iy*cellsize
             celldata = objdata[idlist[target.board[iy][ix]]]
-            pygame.draw.rect(surface, celldata['notexture'], (cx+1, cy+1, target.viewscale, target.viewscale))
+            pygame.draw.rect(surface, celldata['notexture'], (cx+bordersize, cy+bordersize, target.viewscale, target.viewscale))
 
     return surface
 
@@ -170,7 +171,8 @@ def FieldBoard_step(target):
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
 
 def FieldBoard_draw(target, surface: pygame.Surface):
-    cellsize = target.viewscale+1
+    bordersize = round(target.viewscale / 8)
+    cellsize = target.viewscale+bordersize
     ox = -target.viewx%cellsize
     oy = -target.viewy%cellsize
     lx = math.ceil(WIDTH/cellsize)
@@ -192,11 +194,11 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         endy = engine.clamp(HEIGHT, -target.viewy, -target.viewy+(cellsize*target.board_height))
         if not (linex+target.viewx < 0 or linex+target.viewx > (cellsize*target.board_width)): # в пределах поля
             if (starty-2 > 0):
-                pygame.draw.line(surface, target.linecolor_outfield, (linex, 1), (linex, starty-1))
+                pygame.draw.rect(surface, target.linecolor_outfield, (linex, 0, bordersize, starty))
             if (HEIGHT > endy):
-                pygame.draw.line(surface, target.linecolor_outfield, (linex, endy+1), (linex, HEIGHT+1))
+                pygame.draw.rect(surface, target.linecolor_outfield, (linex, endy+bordersize, bordersize, HEIGHT-endy))
         else:
-            pygame.draw.line(surface, target.linecolor_outfield, (linex, 1), (linex, HEIGHT))
+            pygame.draw.rect(surface, target.linecolor_outfield, (linex, 0, bordersize, HEIGHT))
 
     for iy in range(-1, ly):
         liney = oy+(iy*cellsize)
@@ -204,11 +206,11 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         endx = engine.clamp(WIDTH, -target.viewx, -target.viewx+(cellsize*target.board_width))
         if not (liney+target.viewy < 0 or liney+target.viewy > (cellsize*target.board_height)): # в пределах поля
             if (startx-2 > 0):
-                pygame.draw.line(surface, target.linecolor_outfield, (1, liney), (startx-1, liney))
+                pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, startx, bordersize))
             if (WIDTH > endx):
-                pygame.draw.line(surface, target.linecolor_outfield, (endx+1, liney), (WIDTH+1, liney))
+                pygame.draw.rect(surface, target.linecolor_outfield, (endx+bordersize, liney, WIDTH-endx, bordersize))
         else:
-            pygame.draw.line(surface, target.linecolor_outfield, (1, liney), (WIDTH, liney))
+            pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, WIDTH, bordersize))
 
     txt = get_font('default').render(f'Speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
