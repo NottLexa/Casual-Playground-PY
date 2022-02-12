@@ -21,7 +21,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #10
+  Alexey Kozhanov                                                                     #11
                                                                                DVLP BUILD
 ''')
 
@@ -66,6 +66,8 @@ def load_mod(modfolder, author, official):
 #endregion
 
 #region [SETTINGS]
+current_instrument = {'type':None}
+
 idlist = []
 objdata = {}
 fontsize = 16
@@ -123,8 +125,10 @@ for folder in os.listdir(modsfolder):
                 moddata['official'] = 0
                 objdata[modname] = moddata
                 idlist.append(modname)'''
-print('', list(enumerate(idlist)))
+print('', idlist, list(enumerate(idlist)))
 print(objdata)
+
+cell_fill_on_init = idlist.index('grass')
 #endregion
 
 #region [ENTITY]
@@ -153,7 +157,8 @@ def FieldBoard_create(target):
                    'right': False,
                    'down': False,
                    'speedup':False,
-                   'speeddown':False}
+                   'speeddown':False,
+                   'rmb':False}
     target.cameraspeed = 6
     target.mincamspeed = 3
     target.maxcamspeed = 12
@@ -161,13 +166,32 @@ def FieldBoard_create(target):
     target.board_height = 32
     target.linecolor_infield = 'gray10'
     target.linecolor_outfield = 'gray40'
-    target.board = [[0]*target.board_width for _ in range(target.board_height)]
+    target.board = [[cell_fill_on_init]*target.board_width for _ in range(target.board_height)]
 
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
 
 def FieldBoard_step(target):
     target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
     target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
+
+    if target.keys['rmb']:
+        if current_instrument['type'] == 'pencil':
+            bordersize = round(target.viewscale/8)
+            mx, my = screen.get_mousepos_on_canvas(pygame.mouse.get_pos())
+            rx, ry = mx+target.viewx-bordersize, my+target.viewy-bordersize
+
+            cx = rx//target.viewscale
+            cy = ry//target.viewscale
+
+
+            maxcx = target.board_width
+            maxcy = target.board_height
+
+            if 0 <= cx < maxcx and 0 <= cy < maxcy:
+                if (rx%target.viewscale < (target.viewscale-bordersize) and
+                    ry%target.viewscale < (target.viewscale-bordersize)):
+                    target.board[int(cy)][int(cx)] = current_instrument['cell']
+                    target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
 
@@ -217,6 +241,12 @@ def FieldBoard_draw(target, surface: pygame.Surface):
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
 
+    if current_instrument['type'] == 'pencil':
+        txt = get_font('default').render(f'Pencil: {idlist[current_instrument["cell"]]}', False, 'white')
+
+        surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
+                           surface.get_height() - txt.get_height() - 2 - fontsize-2))
+
     #for ix in range(0, WIDTH, 16+1):
     #    for iy in range(0, HEIGHT, 16+1):
     #        surface.set_at((int(-target.viewx%cellsize)+ix, int(-target.viewy%cellsize)+iy), 'red')
@@ -250,7 +280,10 @@ def FieldBoard_kb_released(target, key):
         target.keys['down'] = setkey
 
 def FieldBoard_mouse_pressed(target, mousepos, buttonid):
-    if buttonid == 4:
+    setkey = True
+    if buttonid == 3: # Use instrument
+        target.keys['rmb'] = setkey
+    elif buttonid == 4: # Scroll up
         oldvs = target.viewscale
         target.viewscale = engine.clamp(target.viewscale-engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
         newvs = target.viewscale
@@ -259,7 +292,7 @@ def FieldBoard_mouse_pressed(target, mousepos, buttonid):
         target.viewy = (target.viewy+(HEIGHT//2))*newvs/oldvs - (HEIGHT//2)
 
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
-    elif buttonid == 5:
+    elif buttonid == 5: # Scroll down
         oldvs = target.viewscale
         target.viewscale = engine.clamp(target.viewscale+engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
         newvs = target.viewscale
@@ -269,15 +302,22 @@ def FieldBoard_mouse_pressed(target, mousepos, buttonid):
 
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
+def FieldBoard_mouse_released(target, mousepos, buttonid):
+    setkey = False
+    if buttonid == 3:  # Use instrument
+        target.keys['rmb'] = setkey
+
 EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step, event_draw=FieldBoard_draw,
                               event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released,
-                              event_mouse_pressed=FieldBoard_mouse_pressed)
+                              event_mouse_pressed=FieldBoard_mouse_pressed,
+                              event_mouse_released=FieldBoard_mouse_released)
 #endregion
 #region [FIELD STANDARD UI]
 def FieldSUI_create(target):
     target.show_step = 0.0
     target.show_menu = False
     target.show_all = True
+    target.cellmenu_width = 128
 
 def FieldSUI_step(target):
     target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
@@ -290,15 +330,25 @@ def FieldSUI_step(target):
 def FieldSUI_draw(target, surface: pygame.Surface):
     if target.show_all:
 
-        phase_offset = int(200*target.show_step)-200
+        measure = int(target.cellmenu_width*1.5)
+        phase_offset = int(measure*target.show_step)-measure
 
         alphabg = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        pygame.draw.rect(alphabg, 'gray10', (4+phase_offset, 4, 128, surface.get_height() - 8), 0, 5)
-        pygame.draw.rect(alphabg, 'gray50', (4+phase_offset, 4, 128, surface.get_height() - 8), 1, 5)
+        pygame.draw.rect(alphabg, 'gray10', (4+phase_offset, 4, target.cellmenu_width, surface.get_height() - 8), 0, 5)
+        pygame.draw.rect(alphabg, 'gray50', (4+phase_offset, 4, target.cellmenu_width, surface.get_height() - 8), 1, 5)
 
         alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
 
         surface.blit(alphabg, (0, 0))
+
+        inoneline = (target.cellmenu_width-4)//(16+4)
+        ci = -1
+        for o in idlist:
+            obj = objdata[o]
+            if obj['type'] == 'CELL':
+                ci += 1
+                cx, cy = 4+4+(16+4)*(ci%inoneline), 4+4+(16+4)*(ci//inoneline)
+                pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, 16, 16))
 
 def FieldSUI_kb_pressed(target, key):
     if key == pygame.K_TAB:
@@ -310,8 +360,29 @@ def FieldSUI_kb_pressed(target, key):
 def FieldSUI_kb_released(target, key):
     pass
 
+def FieldSUI_mouse_pressed(target, mousepos, buttonid):
+    if target.show_all:
+        global current_instrument
+        if buttonid == 1:
+            phase_offset = int(200 * target.show_step) - 200
+            inoneline = (target.cellmenu_width - 4) // (16 + 4)
+            mx, my = mousepos
+            mx -= 4+4+phase_offset
+            my -= 4+4
+            cx = mx//(16+4)
+            cy = my//(16+4)
+            maxcx = min(len(idlist)-1, (len(idlist)-1)%inoneline)
+            maxcy = math.ceil((len(idlist)-1)/inoneline)
+
+            if 0 <= cx <= maxcx and 0 <= cy <= maxcy:
+                if (mx%(16+4)) < 16 and (my%(16+4)) < 16:
+                    cellid = int(cy*inoneline+cx)
+                    current_instrument = {'type':'pencil', 'cell':cellid}
+
+
 EntFieldSUI = engine.Entity(event_create=FieldSUI_create, event_step=FieldSUI_step, event_draw=FieldSUI_draw,
-                            event_kb_pressed=FieldSUI_kb_pressed, event_kb_released=FieldSUI_kb_released)
+                            event_kb_pressed=FieldSUI_kb_pressed, event_kb_released=FieldSUI_kb_released,
+                            event_mouse_pressed=FieldSUI_mouse_pressed)
 #endregion
 #endregion
 
