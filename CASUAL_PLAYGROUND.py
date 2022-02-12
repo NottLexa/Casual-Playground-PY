@@ -21,11 +21,11 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                      #6
+  Alexey Kozhanov                                                                      #7
                                                                                DVLP BUILD
 ''')
 
-scale = 30
+scale = 50
 WIDTH, HEIGHT = 16*scale, 9*scale
 
 screen = engine.Screen((WIDTH, HEIGHT), (WIDTH*2, HEIGHT*2), 0, True)
@@ -35,22 +35,68 @@ deltatime = 0
 pygame.init()
 #endregion
 
-#region [SETTINGS]
-font_debug = pygame.font.SysFont('calibri', 10)
+#region [LOADING FUNCTIONS]
+def load_fonts(fontsfolder):
+    fontsdict = {}
+    for m in os.listdir(fontsfolder):
+        path = ntpath.join(fontsfolder, m)
+        if ntpath.isfile(path):
+            if path[-4:] == '.ttf':
+                fontsdict[m[:-4]] = pygame.font.Font(path, fontsize)
+    return fontsdict
 
+def load_modlist(modsfolder):
+    filter_func = lambda x: ntpath.isdir(ntpath.join(modsfolder, x))
+    filtered = filter(filter_func, os.listdir(modsfolder))
+    return list(filtered)
+
+def load_mod(modfolder, author, official):
+    mods = {}
+    for m in os.listdir(modfolder):
+        path = ntpath.join(modfolder, m)
+        if ntpath.isfile(path):
+            if path[-4:] == '.mod':
+                with open(path, 'r', encoding='utf8') as f:
+                    moddata = comp.get(f.read())
+                modname = m[:-4]
+                moddata['author'] = author
+                moddata['official'] = official
+                mods[modname] = moddata
+    return mods
+#endregion
+
+#region [SETTINGS]
 idlist = []
 objdata = {}
+fontsize = 16
+fonts = {}
 
 fullgamepath = os.getcwd()
+
+fontsfolder = ntpath.join(fullgamepath, 'data', 'fonts')
+fonts = load_fonts(fontsfolder)
+
+print(fonts)
+
+font_debug = pygame.font.Font(None, 16)
 
 corefolder = ntpath.join(fullgamepath, 'core', 'corecontent')
 modsfolder = ntpath.join(fullgamepath, 'data', 'mods')
 
-coremods = os.listdir(corefolder)
-for m in coremods:
+coremods = load_mod(corefolder, 'Casual Playground', 1)
+idlist.extend(coremods)
+objdata.update(coremods)
+
+allmods = load_modlist(modsfolder)
+for moddir in allmods:
+    modpath = ntpath.join(modsfolder, moddir)
+    mod = load_mod(modpath, moddir, 0)
+    idlist.extend(mod)
+    objdata.update(mod)
+
+'''for m in os.listdir(corefolder):
     path = ntpath.join(corefolder, m)
     if ntpath.isfile(path):
-        print(path)
         if path[-4:] == '.mod':
             with open(path, 'r', encoding='utf8') as f:
                 moddata = comp.get(f.read())
@@ -60,20 +106,20 @@ for m in coremods:
             objdata[modname] = moddata
             idlist.append(modname)
 
-custommods = os.listdir(modsfolder)
-for folder in custommods:
+for folder in os.listdir(modsfolder):
     currentmodfolder = ntpath.join(modsfolder, folder)
     for m in currentmodfolder:
         path = ntpath.join(currentmodfolder, m)
         if ntpath.isfile(path):
-            if path[:-4] == '.mod':
+            if path[-4:] == '.mod':
                 with open(path, 'r', encoding='utf8') as f:
                     moddata = comp.get(f.read())
                 modname = m[:-4]
                 moddata['author'] = folder
                 moddata['official'] = 0
                 objdata[modname] = moddata
-                idlist.append(modname)
+                idlist.append(modname)'''
+print('', list(enumerate(idlist)))
 print(objdata)
 #endregion
 
@@ -160,7 +206,7 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         else:
             pygame.draw.line(surface, target.linecolor_outfield, (1, liney), (WIDTH, liney))
 
-    txt = font_debug.render(f'Speed: {2**target.cameraspeed}', False, 'white')
+    txt = fonts['default'].render(f'Speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
 
@@ -170,30 +216,30 @@ def FieldBoard_draw(target, surface: pygame.Surface):
 
     #surface.set_at((int(-target.viewx), int(-target.viewy)), 'aqua')
 
-def FieldBoard_kb_pressed(target, buttonid):
+def FieldBoard_kb_pressed(target, key):
     setkey = True
-    if buttonid in (pygame.K_UP, pygame.K_w):
+    if key in (pygame.K_UP, pygame.K_w):
         target.keys['up'] = setkey
-    if buttonid in (pygame.K_LEFT, pygame.K_a):
+    if key in (pygame.K_LEFT, pygame.K_a):
         target.keys['left'] = setkey
-    if buttonid in (pygame.K_RIGHT, pygame.K_d):
+    if key in (pygame.K_RIGHT, pygame.K_d):
         target.keys['right'] = setkey
-    if buttonid in (pygame.K_DOWN, pygame.K_s):
+    if key in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
-    if buttonid == pygame.K_q:
+    if key == pygame.K_q:
         target.cameraspeed = engine.clamp(target.cameraspeed-1, target.mincamspeed, target.maxcamspeed)
-    if buttonid == pygame.K_e:
+    if key == pygame.K_e:
         target.cameraspeed = engine.clamp(target.cameraspeed+1, target.mincamspeed, target.maxcamspeed)
 
-def FieldBoard_kb_released(target, buttonid):
+def FieldBoard_kb_released(target, key):
     setkey = False
-    if buttonid in (pygame.K_UP, pygame.K_w):
+    if key in (pygame.K_UP, pygame.K_w):
         target.keys['up'] = setkey
-    elif buttonid in (pygame.K_LEFT, pygame.K_a):
+    elif key in (pygame.K_LEFT, pygame.K_a):
         target.keys['left'] = setkey
-    elif buttonid in (pygame.K_RIGHT, pygame.K_d):
+    elif key in (pygame.K_RIGHT, pygame.K_d):
         target.keys['right'] = setkey
-    elif buttonid in (pygame.K_DOWN, pygame.K_s):
+    elif key in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
 
 def FieldBoard_mouse_pressed(target, mousepos, buttonid):
@@ -208,16 +254,59 @@ EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBo
                               event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released,
                               event_mouse_pressed=FieldBoard_mouse_pressed)
 #endregion
+#region [FIELD STANDARD UI]
+def FieldSUI_create(target):
+    target.show_step = 0.0
+    target.show_menu = False
+    target.show_all = True
+
+def FieldSUI_step(target):
+    target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
+
+    print(target.show_step, target.show_menu, target.show_all)
+    if round(target.show_step, 5) == 0:
+        target.show_step = 0
+    elif round(target.show_step, 5) == 1:
+        target.show_step = 1
+
+def FieldSUI_draw(target, surface: pygame.Surface):
+    if target.show_all:
+
+        phase_offset = int(200*target.show_step)-200
+
+        alphabg = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        pygame.draw.rect(alphabg, 'gray10', (4+phase_offset, 4, 128, surface.get_height() - 8), 0, 5)
+        pygame.draw.rect(alphabg, 'gray50', (4+phase_offset, 4, 128, surface.get_height() - 8), 1, 5)
+
+        alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
+
+        surface.blit(alphabg, (0, 0))
+
+def FieldSUI_kb_pressed(target, key):
+    if key == pygame.K_TAB:
+        if pygame.key.get_mods() and pygame.KMOD_CTRL:
+            target.show_all = not target.show_all
+        else:
+            target.show_menu = not target.show_menu
+
+def FieldSUI_kb_released(target, key):
+    pass
+
+EntFieldSUI = engine.Entity(event_create=FieldSUI_create, event_step=FieldSUI_step, event_draw=FieldSUI_draw,
+                            event_kb_pressed=FieldSUI_kb_pressed, event_kb_released=FieldSUI_kb_released)
+#endregion
 #endregion
 
 #region [INSTANCE]
-field = EntFieldBoard.instance()
+fieldboard = EntFieldBoard.instance()
+
+fieldsui = EntFieldSUI.instance()
 #endregion
 
 #region [ROOM]
 room_mainmenu = engine.Room()
 
-room_field = engine.Room([EntFieldBoard])
+room_field = engine.Room([EntFieldBoard, EntFieldSUI])
 
 engine.rooms.change_current_room(room_field)
 #endregion
