@@ -21,7 +21,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #11
+  Alexey Kozhanov                                                                     #12
                                                                                DVLP BUILD
 ''')
 
@@ -66,6 +66,7 @@ def load_mod(modfolder, author, official):
 #endregion
 
 #region [SETTINGS]
+loc = 'rus'
 current_instrument = {'type':None}
 
 idlist = []
@@ -148,10 +149,17 @@ def FieldBoard_user_draw_board(target):
 
     return surface
 
+def FieldBoard_center_view(target):
+    target.viewx = (target.viewscale*target.board_width//2) - (WIDTH//2)
+    target.viewy = (target.viewscale*target.board_height//2) - (HEIGHT//2)
+
 def FieldBoard_create(target):
-    target.viewx = 0
-    target.viewy = 0
+    target.board_width = 32
+    target.board_height = 32
+
     target.viewscale = 16
+    FieldBoard_center_view(target)
+
     target.keys = {'up': False,
                    'left': False,
                    'right': False,
@@ -159,13 +167,14 @@ def FieldBoard_create(target):
                    'speedup':False,
                    'speeddown':False,
                    'rmb':False}
+
     target.cameraspeed = 6
     target.mincamspeed = 3
     target.maxcamspeed = 12
-    target.board_width = 32
-    target.board_height = 32
+
     target.linecolor_infield = 'gray10'
     target.linecolor_outfield = 'gray40'
+
     target.board = [[cell_fill_on_init]*target.board_width for _ in range(target.board_height)]
 
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
@@ -317,7 +326,7 @@ def FieldSUI_create(target):
     target.show_step = 0.0
     target.show_menu = False
     target.show_all = True
-    target.cellmenu_width = 128
+    target.cellmenu_width = 256
 
 def FieldSUI_step(target):
     target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
@@ -341,18 +350,18 @@ def FieldSUI_draw(target, surface: pygame.Surface):
 
         surface.blit(alphabg, (0, 0))
 
-        inoneline = (target.cellmenu_width-4)//(16+4)
+        inoneline = (target.cellmenu_width-4)//(32+8)
         ci = -1
         for o in idlist:
             obj = objdata[o]
             if obj['type'] == 'CELL':
                 ci += 1
-                cx, cy = 4+4+(16+4)*(ci%inoneline), 4+4+(16+4)*(ci//inoneline)
-                pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, 16, 16))
+                cx, cy = 4+4+(32+8)*(ci%inoneline), 4+4+(32+8)*(ci//inoneline)
+                pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, 32, 32))
 
 def FieldSUI_kb_pressed(target, key):
     if key == pygame.K_TAB:
-        if pygame.key.get_mods() and pygame.KMOD_CTRL:
+        if pygame.key.get_mods() & pygame.KMOD_CTRL:
             target.show_all = not target.show_all
         else:
             target.show_menu = not target.show_menu
@@ -365,17 +374,17 @@ def FieldSUI_mouse_pressed(target, mousepos, buttonid):
         global current_instrument
         if buttonid == 1:
             phase_offset = int(200 * target.show_step) - 200
-            inoneline = (target.cellmenu_width - 4) // (16 + 4)
+            inoneline = (target.cellmenu_width - 4) // (32 + 8)
             mx, my = mousepos
             mx -= 4+4+phase_offset
             my -= 4+4
-            cx = mx//(16+4)
-            cy = my//(16+4)
+            cx = mx//(32+8)
+            cy = my//(32+8)
             maxcx = min(len(idlist)-1, (len(idlist)-1)%inoneline)
             maxcy = math.ceil((len(idlist)-1)/inoneline)
 
             if 0 <= cx <= maxcx and 0 <= cy <= maxcy:
-                if (mx%(16+4)) < 16 and (my%(16+4)) < 16:
+                if (mx%(32+8)) < 16 and (my%(32+8)) < 32:
                     cellid = int(cy*inoneline+cx)
                     current_instrument = {'type':'pencil', 'cell':cellid}
 
