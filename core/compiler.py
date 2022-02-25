@@ -22,7 +22,65 @@ def first_string(code: str, start: int):
         l += 1
     return indexes[0], indexes[1]+1, write
 
+def split_args1(code: str, start: int = None, end: Union[int, str] = None):
+    newlinestop = False
+    if start is None:
+        start = 0
+    if end is None:
+        end = len(code)
+    elif end == '\n':
+        newlinestop = True
+        end = len(code)
+    else:
+        end = min(end, len(code))
+
+    args = []
+
+    write = ''
+
+    l = start
+    while l < end:
+        if newlinestop and code[l] == '\n':
+            break
+        if code[l] == ' ' or code[l] == '\n' or code[l] == '\t':
+            if write != '':
+                args.append(write)
+                write = ''
+        elif code[l] == '"':
+            i0, i1, string = first_string(code, l)
+            l = i1 - 1
+            write += f'"{string}"'
+        else:
+            write += code[l]
+        l += 1
+
+    if write != '':
+        args.append(write)
+
+    return args
+
 def get(code: str):
+    l = 0
+    if code[l:l+7] == 'VERSION':
+        l += 7
+        while code[l] == ' ':
+            l += 1
+        write = ''
+        while code[l] != '\n':
+            write += code[l]
+            l += 1
+
+    version = int(write)
+
+    if version == 1:
+        return get_version1(code, l)
+
+def get_version1(code: str, start: int, end: int = None):
+    if end is None:
+        end = len(code)
+    else:
+        end = min(end, len(code))
+
     ret = {'version': 0,
            'type': 'CELL',
            'name': 'Cell',
@@ -32,77 +90,39 @@ def get(code: str):
            'script': {'create': '',
                       'step': ''}}
 
-    l = 0
+    l = start
     wstart = 0
-    while l < len(code):
-        if code[l:l+7] == 'VERSION':
-            l += 7
-            while code[l] == ' ':
-                l += 1
-            write = ''
-            while code[l] != '\n':
-                write += code[l]
-                l += 1
-            ret['version'] = int(write)
-
-        elif code[l:l+4] == 'CELL':
+    while l < end:
+        if code[l:l+4] == 'CELL':
             l += 4
             ret['type'] = 'CELL'
-            write_to = False
-            while code[l] != '\n':
-                while code[l] != '"':
-                    l += 1
-                i0, i1, string = first_string(code, l)
-                l = i1
-                if not write_to:
-                    ret['name'] = string
-                    write_to = True
-                else:
-                    ret['desc'] = string
+
+            write = split_args1(code, l, '\n')
+            if len(write) > 0:
+                ret['name'] = eval(write[0])
+            if len(write) > 1:
+                ret['desc'] = eval(write[1])
 
         elif code[l:l+9] == 'NOTEXTURE':
             l += 9
-            write = ''
-            writeind = 0
-            while code[l] != '\n':
-                if code[l] == ' ':
-                    if write != '':
-                        ret['notexture'][writeind] = int(float(write))
-                        writeind += 1
-                        write = ''
-                else:
-                    write += code[l]
-                l += 1
-            if write != '':
-                ret['notexture'][writeind] = int(float(write))
 
-        if code[l:l+12] == 'LOCALIZATION':
+            write = split_args1(code, l, '\n')
+            if len(write) > 0:
+                ret['notexture'][0] = int(float(write[0]))
+            if len(write) > 1:
+                ret['notexture'][1] = int(float(write[1]))
+            if len(write) > 2:
+                ret['notexture'][2] = int(float(write[2]))
+
+        elif code[l:l+12] == 'LOCALIZATION':
             l += 12
             while code[l] != '\n':
                 l += 1
             l += 1
             while code[l:l+4] == '    ':
                 l += 4
-                lang = ''
-                name = ''
-                desc = ''
-                while code[l] != ' ':
-                    lang += code[l]
-                    l += 1
-                l += 1
-                writeto = False
-                while l < len(code) and code[l] != '\n':
-                    while code[l] != '"':
-                        l += 1
-                    i0, i1, string = first_string(code, l)
-                    l = i1
-                    if not writeto:
-                        name = string
-                        writeto = True
-                    else:
-                        desc = string
-                ret['localization'][lang] = {'name': name, 'desc': desc}
-
+                lang, name, desc = split_args1(code, l, '\n')
+                ret['localization'][lang] = {'name': eval(name), 'desc': eval(desc)}
 
         l += 1
 
