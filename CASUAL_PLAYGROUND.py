@@ -21,12 +21,13 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #12
+  Alexey Kozhanov                                                                     #13
                                                                                DVLP BUILD
 ''')
 
 scale = 50
 WIDTH, HEIGHT = 16*scale, 9*scale
+WIDTH2, HEIGHT2 = WIDTH//2, HEIGHT//2
 
 screen = engine.Screen((WIDTH, HEIGHT), (WIDTH*2, HEIGHT*2), 0, True)
 clock = pygame.time.Clock()
@@ -150,8 +151,8 @@ def FieldBoard_user_draw_board(target):
     return surface
 
 def FieldBoard_center_view(target):
-    target.viewx = (target.viewscale*target.board_width//2) - (WIDTH//2)
-    target.viewy = (target.viewscale*target.board_height//2) - (HEIGHT//2)
+    target.viewx = (target.viewscale*target.board_width//2) - (WIDTH2)
+    target.viewy = (target.viewscale*target.board_height//2) - (HEIGHT2)
 
 def FieldBoard_create(target):
     target.board_width = 32
@@ -297,8 +298,8 @@ def FieldBoard_mouse_pressed(target, mousepos, buttonid):
         target.viewscale = engine.clamp(target.viewscale-engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
         newvs = target.viewscale
 
-        target.viewx = (target.viewx+(WIDTH//2))*newvs/oldvs - (WIDTH//2)
-        target.viewy = (target.viewy+(HEIGHT//2))*newvs/oldvs - (HEIGHT//2)
+        target.viewx = (target.viewx+(WIDTH2))*newvs/oldvs - (WIDTH2)
+        target.viewy = (target.viewy+(HEIGHT2))*newvs/oldvs - (HEIGHT2)
 
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
     elif buttonid == 5: # Scroll down
@@ -306,8 +307,8 @@ def FieldBoard_mouse_pressed(target, mousepos, buttonid):
         target.viewscale = engine.clamp(target.viewscale+engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
         newvs = target.viewscale
 
-        target.viewx = (target.viewx+(WIDTH//2))*newvs/oldvs - (WIDTH//2)
-        target.viewy = (target.viewy+(HEIGHT//2))*newvs/oldvs - (HEIGHT//2)
+        target.viewx = (target.viewx+(WIDTH2))*newvs/oldvs - (WIDTH2)
+        target.viewy = (target.viewy+(HEIGHT2))*newvs/oldvs - (HEIGHT2)
 
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
