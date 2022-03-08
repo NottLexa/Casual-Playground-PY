@@ -1,5 +1,5 @@
 ###
-### NLE1 (NotLexaEngine 1) for Python 3.8+
+### NLE1 (NotLexaEngine 1) for Python 3.10+, Pygame 2.1+
 ### Version: 1.0.0
 ### License: CC BY-NC-SA 4.0
 ###

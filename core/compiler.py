@@ -158,3 +158,29 @@ def get_version1(code: str, start: int, end: int = None):
         l += 1
 
     return ret
+
+class CompilerConclusion:
+    ids = [
+        # 0-- / Basic problems
+        ['Not a .mod file',
+         'Version of code is not stated in the start of .mod file (might be unreadable encoding, use UTF-8)'],
+        # 1-- / Syntax error
+        [],
+    ]
+
+    @staticmethod
+    def get_description(code: int) -> str:
+        group, errid = divmod(code, 100)
+        if group in CompilerConclusion.ids and errid in CompilerConclusion.ids[group]:
+            return CompilerConclusion.ids[group][errid]
+        else:
+            return 'Unknown Code'
+
+    def __init__(self, code: int):
+        self.code = code
+    def __repr__(self) -> str:
+        return f'<CompCon:{self.code}>'
+    def __str__(self) -> str:
+        return f'<Compiler conclusion #{self.code}>'
+    def full_conclusion(self) -> str:
+        return f'<Compiler conclusion with ID: {self.code}\n' + CompilerConclusion.get_description(404) + '>'
