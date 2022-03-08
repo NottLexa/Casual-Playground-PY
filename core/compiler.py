@@ -59,6 +59,35 @@ def split_args1(code: str, start: int = None, end: Union[int, str] = None):
 
     return args
 
+def split_args2(code: str, start: int = None):
+    end = len(code)
+
+    args = []
+
+    write = ''
+
+    l = start
+    while l < end:
+        if code[l] == '\n':
+            end = l
+            break
+        if code[l] == ' ' or code[l] == '\n' or code[l] == '\t':
+            if write != '':
+                args.append(write)
+                write = ''
+        elif code[l] == '"':
+            i0, i1, string = first_string(code, l)
+            l = i1 - 1
+            write += f'"{string}"'
+        else:
+            write += code[l]
+        l += 1
+
+    if write != '':
+        args.append(write)
+
+    return end, args
+
 def get(code: str):
     l = 0
     if code[l:l+7] == 'VERSION':
@@ -106,7 +135,8 @@ def get_version1(code: str, start: int, end: int = None):
         elif code[l:l+9] == 'NOTEXTURE':
             l += 9
 
-            write = split_args1(code, l, '\n')
+            l, write = split_args2(code, l)
+            l += 1
             if len(write) > 0:
                 ret['notexture'][0] = int(float(write[0]))
             if len(write) > 1:
@@ -121,7 +151,8 @@ def get_version1(code: str, start: int, end: int = None):
             l += 1
             while code[l:l+4] == '    ':
                 l += 4
-                lang, name, desc = split_args1(code, l, '\n')
+                l, (lang, name, desc) = split_args1(code, l)
+                l += 1
                 ret['localization'][lang] = {'name': eval(name), 'desc': eval(desc)}
 
         l += 1
