@@ -1,5 +1,72 @@
 from typing import Union
 
+LAST_COMPILER_VERSION = 1
+
+class CompilerCursor:
+    def __init__(self, codetxt: str = '', startline: int = 0, endline: int = None):
+        startindex = 0
+        for i in range(startline):
+            startindex = codetxt.find('\n', startindex)+1
+
+        endindex = codetxt.find('\n', startindex)
+        if endline is not None:
+            for i in range(endline):
+                endindex = codetxt.find('\n', endindex+1)
+
+        self.si = startindex
+        self.ei = endindex
+        self.txt = codetxt[startindex:endindex]
+
+    def __repr__(self):
+        return f'CompilerCursor[{self.si}:{self.ei}]'
+    def __str__(self):
+        return f'CompilerCursor[{self.si}:{self.ei}]: "{self.txt}"'
+    def start(self):
+        return self.si
+    def end(self):
+        return self.ei
+    def string(self):
+        return self.txt
+
+class CompilerConclusion:
+    ids = [
+        # 0-- / Success conclusions
+        list({
+            0: 'Success',
+            1: 'Success (warning, outdated version of mod)',
+        }.values()),
+        # 1-- / Format errors
+        list({
+            0: 'Not a .mod file',
+            1: 'Empty file',
+            2: 'Version of code is not stated in the start of .mod file (might be unreadable encoding, use UTF-8)',
+            3: 'Unknown version of mod',
+        }.values()),
+        # 2-- / Syntax error
+        list({
+
+        }.values()),
+    ]
+
+    @staticmethod
+    def get_description(code: int) -> str:
+        group, errid = divmod(code, 100)
+        if group in CompilerConclusion.ids and errid in CompilerConclusion.ids[group]:
+            return CompilerConclusion.ids[group][errid]
+        else:
+            return 'Unknown Code'
+
+    def __init__(self, conclusion_code: int):
+        self.code = conclusion_code
+    def __repr__(self) -> str:
+        return f'<CompCon[{self.code}]>'
+    def __str__(self) -> str:
+        return f'<CompilerConclusion: {self.code}>'
+    def full_conclusion(self) -> str:
+        return f'< CompilerConclusion with ID {self.code}\n  ---\n  ' + CompilerConclusion.get_description(self.code) + ' >'
+    def short_conclusion(self) -> str:
+        return f'<CompilerConclusion with ID {self.code}: {CompilerConclusion.get_description(self.code)}>'
+
 def first_string(code: str, start: int):
     indexes = [-1, -1]
     l = start
@@ -88,7 +155,11 @@ def split_args2(code: str, start: int = None):
 
     return end, args
 
-def get(code: str):
+get_hinting = (list, CompilerConclusion, (CompilerCursor | None))
+
+def get(code: str) -> get_hinting:
+    if code == '':
+        return {}, CompilerConclusion(1), None
     l = 0
     if code[l:l+7] == 'VERSION':
         l += 7
@@ -98,13 +169,21 @@ def get(code: str):
         while code[l] != '\n':
             write += code[l]
             l += 1
+    else:
+        return {}, CompilerConclusion(2), None
 
     version = int(write)
 
     if version == 1:
-        return get_version1(code, l)
+        ret = list(get_version1(code, l))
+    else:
+        return {}, CompilerConclusion(3), CompilerCursor(code, 0, 0)
 
-def get_version1(code: str, start: int, end: int = None):
+    if ret[1] == CompilerConclusion(0) and version != LAST_COMPILER_VERSION:
+        ret[1] = CompilerConclusion(1)
+    return ret
+
+def get_version1(code: str, start: int, end: int = None) -> get_hinting:
     if end is None:
         end = len(code)
     else:
@@ -157,30 +236,4 @@ def get_version1(code: str, start: int, end: int = None):
 
         l += 1
 
-    return ret
-
-class CompilerConclusion:
-    ids = [
-        # 0-- / Basic problems
-        ['Not a .mod file',
-         'Version of code is not stated in the start of .mod file (might be unreadable encoding, use UTF-8)'],
-        # 1-- / Syntax error
-        [],
-    ]
-
-    @staticmethod
-    def get_description(code: int) -> str:
-        group, errid = divmod(code, 100)
-        if group in CompilerConclusion.ids and errid in CompilerConclusion.ids[group]:
-            return CompilerConclusion.ids[group][errid]
-        else:
-            return 'Unknown Code'
-
-    def __init__(self, code: int):
-        self.code = code
-    def __repr__(self) -> str:
-        return f'<CompCon:{self.code}>'
-    def __str__(self) -> str:
-        return f'<Compiler conclusion #{self.code}>'
-    def full_conclusion(self) -> str:
-        return f'<Compiler conclusion with ID: {self.code}\n' + CompilerConclusion.get_description(404) + '>'
+    return ret, CompilerConclusion(0), None
