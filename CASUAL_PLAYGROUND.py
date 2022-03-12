@@ -58,7 +58,7 @@ def load_mod(modfolder, author, official):
         if ntpath.isfile(path):
             if path[-4:] == '.mod':
                 with open(path, 'r', encoding='utf8') as f:
-                    moddata = comp.get(f.read())
+                    moddata = comp.get(f.read())[0]
                 modname = m[:-4]
                 moddata['author'] = author
                 moddata['official'] = official
@@ -130,7 +130,7 @@ for folder in os.listdir(modsfolder):
 print('', idlist, list(enumerate(idlist)))
 print(objdata)
 
-cell_fill_on_init = idlist.index('grass')
+cell_fill_on_init = objdata['grass']
 #endregion
 
 #region [ENTITY]
@@ -144,7 +144,7 @@ def FieldBoard_user_draw_board(target):
     for ix in range(bw):
         for iy in range(bh):
             cx, cy = ix*cellsize, iy*cellsize
-            celldata = objdata[idlist[target.board[iy][ix]]]
+            celldata = target.board[iy][ix].code
             pygame.draw.rect(surface, celldata['notexture'], (cx+bordersize, cy+bordersize,
                                                               target.viewscale-bordersize, target.viewscale-bordersize))
 
@@ -176,7 +176,12 @@ def FieldBoard_create(target):
     target.linecolor_infield = 'gray10'
     target.linecolor_outfield = 'gray40'
 
-    target.board = [[cell_fill_on_init]*target.board_width for _ in range(target.board_height)]
+    target.board = []
+    for y in range(target.board_height):
+        target.board.append([])
+        for x in range(target.board_width):
+            celldata = comp.Cell({'X': x, 'Y': y}, cell_fill_on_init)
+            target.board[-1].append(celldata)
 
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
 
@@ -200,7 +205,7 @@ def FieldBoard_step(target):
             if 0 <= cx < maxcx and 0 <= cy < maxcy:
                 if (rx%target.viewscale < (target.viewscale-bordersize) and
                     ry%target.viewscale < (target.viewscale-bordersize)):
-                    target.board[int(cy)][int(cx)] = current_instrument['cell']
+                    #target.board[int(cy)][int(cx)] = current_instrument['cell']
                     target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)

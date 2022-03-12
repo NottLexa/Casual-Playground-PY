@@ -1,98 +1,14 @@
 from typing import Union
+import core.compiler_code_blocks as ccb
+import core.compiler_embedded_parts as cep
+import core.compiler_line_definer as cld
+from core.compiler_conclusions_cursors import *
 
 LAST_COMPILER_VERSION = 1
+X, Y, CELLID = range(3)
 
-class CompilerCursor:
-    def __init__(self, codetxt: str = '', startline: int = 0, endline: int = None):
-        startindex = 0
-        for i in range(startline):
-            startindex = codetxt.find('\n', startindex)+1
-
-        endindex = codetxt.find('\n', startindex)
-        if endline is not None:
-            for i in range(endline):
-                endindex = codetxt.find('\n', endindex+1)
-
-        self.si = startindex
-        self.ei = endindex
-        self.txt = codetxt[startindex:endindex]
-
-    def __repr__(self):
-        return f'CompilerCursor[{self.si}:{self.ei}]'
-    def __str__(self):
-        return f'CompilerCursor[{self.si}:{self.ei}]: "{self.txt}"'
-    def start(self):
-        return self.si
-    def end(self):
-        return self.ei
-    def string(self):
-        return self.txt
-
-class CompilerConclusion:
-    ids = [
-        # 0-- / Success conclusions
-        list({
-            0: 'Success',
-            1: 'Success (warning, outdated version of mod)',
-        }.values()),
-        # 1-- / Format errors
-        list({
-            0: 'Not a .mod file',
-            1: 'Empty file',
-            2: 'Version of code is not stated in the start of .mod file (might be unreadable encoding, use UTF-8)',
-            3: 'Unknown version of mod',
-        }.values()),
-        # 2-- / Syntax error
-        list({
-
-        }.values()),
-    ]
-
-    @staticmethod
-    def get_description(code: int) -> str:
-        group, errid = divmod(code, 100)
-        if group in CompilerConclusion.ids and errid in CompilerConclusion.ids[group]:
-            return CompilerConclusion.ids[group][errid]
-        else:
-            return 'Unknown Code'
-
-    def __init__(self, conclusion_code: int):
-        self.code = conclusion_code
-    def __repr__(self) -> str:
-        return f'<CompCon[{self.code}]>'
-    def __str__(self) -> str:
-        return f'<CompilerConclusion: {self.code}>'
-    def full_conclusion(self) -> str:
-        return f'< CompilerConclusion with ID {self.code}\n  ---\n  ' + CompilerConclusion.get_description(self.code) + ' >'
-    def short_conclusion(self) -> str:
-        return f'<CompilerConclusion with ID {self.code}: {CompilerConclusion.get_description(self.code)}>'
-
-def first_string(code: str, start: int):
-    indexes = [-1, -1]
-    l = start
-    write = ''
-    qmcount = 0
-    while (l < len(code)) and (qmcount < 2):
-        if code[l] == '"':
-            indexes[qmcount] = l
-            qmcount += 1
-        elif qmcount == 1:
-            if code[l] == '\\':
-                if code[l:l+2] == '\\"':
-                    write += '"'
-                    l += 1
-                elif code[l:l+2] == '\\\\':
-                    write += '\\'
-                    l += 1
-            else:
-                write += code[l]
-        l += 1
-    return indexes[0], indexes[1]+1, write
-
-def split_args1(code: str, start: int = None, end: Union[int, str] = None):
+def split_args1(code: str, start: int = 0, end: Union[int, str] = None):
     newlinestop = False
-    if start is None:
-        start = 0
     if end is None:
         end = len(code)
     elif end == '\n':
@@ -114,9 +30,12 @@ def split_args1(code: str, start: int = None, end: Union[int, str] = None):
                 args.append(write)
                 write = ''
         elif code[l] == '"':
-            i0, i1, string = first_string(code, l)
+            print(l)
+            i0, i1, string, concl = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
+            if concl != CompilerConclusion(0):
+                return concl
             l = i1 - 1
-            write += f'"{string}"'
+            write += string
         else:
             write += code[l]
         l += 1
@@ -126,13 +45,10 @@ def split_args1(code: str, start: int = None, end: Union[int, str] = None):
 
     return args
 
-def split_args2(code: str, start: int = None):
+def split_args2(code: str, start: int = 0):
     end = len(code)
-
     args = []
-
     write = ''
-
     l = start
     while l < end:
         if code[l] == '\n':
@@ -143,9 +59,11 @@ def split_args2(code: str, start: int = None):
                 args.append(write)
                 write = ''
         elif code[l] == '"':
-            i0, i1, string = first_string(code, l)
+            i0, i1, string, concl = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
+            if concl != CompilerConclusion(0):
+                return 0, concl
             l = i1 - 1
-            write += f'"{string}"'
+            write += string
         else:
             write += code[l]
         l += 1
@@ -153,9 +71,79 @@ def split_args2(code: str, start: int = None):
     if write != '':
         args.append(write)
 
-    return end, args
+    return end+1, args
 
-get_hinting = (list, CompilerConclusion, (CompilerCursor | None))
+def chapter_cell(code: str, startl: int):
+    l = startl
+    ret = {}
+    if code[l:l+4] == 'CELL':
+        l += 4
+        ret['type'] = 'CELL'
+
+        write = split_args1(code, l, '\n')
+        print(write)
+        if type(write) is CompilerConclusion:
+            return 0, {}, write, None
+        if len(write) > 0:
+            ret['name'] = eval(write[0])
+        if len(write) > 1:
+            ret['desc'] = eval(write[1])
+    return l, ret, CompilerConclusion(0), None
+
+def chapter_notexture(code: str, startl: int):
+    l = startl
+    ret = {}
+    if code[l:l+9] == 'NOTEXTURE':
+        ret['notexture'] = [0, 0, 0]
+        l += 9
+
+        l, write = split_args2(code, l)
+        if type(write) is CompilerConclusion:
+            return 0, {}, write, None
+        if len(write) > 0:
+            ret['notexture'][0] = int(float(write[0]))
+        if len(write) > 1:
+            ret['notexture'][1] = int(float(write[1]))
+        if len(write) > 2:
+            ret['notexture'][2] = int(float(write[2]))
+    return l, ret, CompilerConclusion(0), None
+
+def chapter_localization(code: str, startl: int):
+    l = startl
+    ret_localization = {}
+    if code[l:l + 12] == 'LOCALIZATION':
+        ret_localization = {}
+        l += 12
+        while code[l] != '\n':
+            l += 1
+        l += 1
+        while code[l:l + 4] == '    ':
+            l += 4
+            l, write = split_args2(code, l)
+            if type(write) is CompilerConclusion:
+                return 0, {}, write, None
+            lang, name, desc = write
+            ret_localization[lang] = {'name': eval(name), 'desc': eval(desc)}
+    return l, ret_localization, CompilerConclusion(0), None
+
+def chapter_script(code: str, startl: int, version: int):
+    l = startl
+    ret_script = {}
+    if code[l:l + 6] == 'SCRIPT':
+        l += 6
+        while code[l] == ' ':
+            l += 1
+        write = ''
+        while code[l] != ' ':
+            write += code[l]
+        script_type = write.lower()
+        while code[l] != '\n':
+            l += 1
+        l += 1
+        l, ret_script[script_type] = read_code(code, l, tab=1, version=version)
+    return l, ret_script, CompilerConclusion(0), None
+
+get_hinting = (dict, CompilerConclusion, (CompilerCursor | None))
 
 def get(code: str) -> get_hinting:
     if code == '':
@@ -189,51 +177,84 @@ def get_version1(code: str, start: int, end: int = None) -> get_hinting:
     else:
         end = min(end, len(code))
 
-    ret = {'version': 0,
+    ret = {'version': 1,
            'type': 'CELL',
            'name': 'Cell',
            'desc': 'No description given.',
            'notexture': [255, 255, 255],
            'localization': {},
-           'script': {'create': '',
-                      'step': ''}}
+           'script': {'create': None,
+                      'step': None}}
 
     l = start
-    wstart = 0
     while l < end:
-        if code[l:l+4] == 'CELL':
-            l += 4
-            ret['type'] = 'CELL'
-
-            write = split_args1(code, l, '\n')
-            if len(write) > 0:
-                ret['name'] = eval(write[0])
-            if len(write) > 1:
-                ret['desc'] = eval(write[1])
-
-        elif code[l:l+9] == 'NOTEXTURE':
-            l += 9
-
-            l, write = split_args2(code, l)
-            l += 1
-            if len(write) > 0:
-                ret['notexture'][0] = int(float(write[0]))
-            if len(write) > 1:
-                ret['notexture'][1] = int(float(write[1]))
-            if len(write) > 2:
-                ret['notexture'][2] = int(float(write[2]))
-
-        elif code[l:l+12] == 'LOCALIZATION':
-            l += 12
-            while code[l] != '\n':
-                l += 1
-            l += 1
-            while code[l:l+4] == '    ':
-                l += 4
-                l, (lang, name, desc) = split_args1(code, l)
-                l += 1
-                ret['localization'][lang] = {'name': eval(name), 'desc': eval(desc)}
+        l, ret_expand, concl, cursor = chapter_cell(code, l)
+        if concl != CompilerConclusion(0):
+            return {}, concl, cursor
+        ret.update(ret_expand)
+        l, ret_expand, concl, cursor = chapter_notexture(code, l)
+        if concl != CompilerConclusion(0):
+            return {}, concl, cursor
+        ret.update(ret_expand)
+        l, ret_expand, concl, cursor = chapter_localization(code, l)
+        if concl != CompilerConclusion(0):
+            return {}, concl, cursor
+        ret.update(ret_expand)
+        l, ret_expand, concl, cursor = chapter_script(code, l, ret['version'])
+        if concl != CompilerConclusion(0):
+            return {}, concl, cursor
+        ret['script'].update(ret_expand)
 
         l += 1
 
     return ret, CompilerConclusion(0), None
+
+class Cell:
+    def __init__(self, technical_values: dict, cell_code: dict):
+        self.techvars = {'X': 0,
+                         'Y': 0}.update(technical_values)
+        self.code = cell_code.copy()
+        self.localvars = {}
+        if self.code['script']['create'] is not None:
+            execreturn = self.code['script']['create'](localcell=self)
+    def step(self):
+        if self.code['script']['step'] is not None:
+            execreturn = self.code['script']['step'](localcell=self)
+
+def read_code(code: str, startl: int, version: int, tab: int = 0):
+    code_sequence = ccb.BlockSentence()
+    end = len(code)
+    l = startl
+    while l < end:
+        spaces = 0
+        while code[l] == ' ':
+            l += 1
+            spaces += 1
+        if spaces < tab*4: # not in tab
+            break
+        elif spaces > tab*4: # upper tab
+            l, upper_tab = read_code(code, l-spaces, tab+1, version)
+            if type(code_sequence[-1]) is ccb.While:
+                code_sequence[-1].block = upper_tab
+        else:
+            block, l = read_line(code, l-spaces, version, tab)
+            code_sequence.add(block)
+    return l+1, code_sequence
+
+def read_line(code: str, startl: int, version: int, tab: int = 0):
+    end = len(code)
+    l = startl
+    brackets = {'r': 0, # round
+                's': 0, # square
+                'c': 0, # curly
+                'q': 0, # quotemarks
+                't': False} # quotemarks type (False - ", True - ')
+    cond = lambda l: cond1(l) and cond2(l)
+    cond1 = lambda l: l < end
+    cond2 = lambda l: cond2a() and cond2b(l)
+    cond2a = lambda: brackets['r'] == brackets['s'] == brackets['c'] == brackets['q'] == 0
+    cond2b = lambda l: code[l] == '\n'
+
+    l, write = split_args2(code, l)
+    block = cld.definer(write, version)
+    return block, l
