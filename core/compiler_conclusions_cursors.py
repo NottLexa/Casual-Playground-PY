@@ -1,17 +1,11 @@
 class CompilerCursor:
-    def __init__(self, codetxt: str = '', startline: int = 0, endline: int = None):
-        startindex = 0
-        for i in range(startline):
-            startindex = codetxt.find('\n', startindex)+1
+    def __init__(self, codetxt: str = '', index: int = 0):
+        start = codetxt.rfind('\n', 0, index)
+        end = codetxt.find('\n', index)
 
-        endindex = codetxt.find('\n', startindex)
-        if endline is not None:
-            for i in range(endline):
-                endindex = codetxt.find('\n', endindex+1)
-
-        self.si = startindex
-        self.ei = endindex
-        self.txt = codetxt[startindex:endindex]
+        self.si = start+1
+        self.ei = end
+        self.txt = codetxt[self.si:self.ei]
 
     def __repr__(self):
         return f'CompilerCursor[{self.si}:{self.ei}]'

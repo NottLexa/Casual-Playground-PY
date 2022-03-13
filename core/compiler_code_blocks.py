@@ -6,7 +6,7 @@ class Global:
     def back_funcs(value_to_name):
         return ['SETVAR', 'DOCOREFUNC'][value_to_name]
 
-class BlockSentence:
+class BlockSequence:
     def __init__(self, blocks: list = []):
         self.blocks = blocks
     def muladd(self, other):
@@ -27,9 +27,9 @@ class BlockSentence:
     def __setitem__(self, index, value):
         self.blocks[index] = value
     def __str__(self):
-        return f'<BlockSentence [{", ".join(str(x) for x in self.blocks)}]>'
+        return f'<BlockSequence [{", ".join(str(x) for x in self.blocks)}]>'
     def __repr__(self):
-        return f'<BlockSentence L{len(self.blocks)}>'
+        return f'<BlockSequence L{len(self.blocks)}>'
     def recursive_str(self, tab=0):
         spaces = ' '*(4*tab)
         return '\n'.join([spaces+'<Block Sentence:', *[x.recursive_str(tab+1) for x in self.blocks], spaces+'>'])

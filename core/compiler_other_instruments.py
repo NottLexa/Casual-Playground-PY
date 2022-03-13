@@ -25,9 +25,9 @@ def split_args1(code: str, start: int = 0, end: int | str = None):
                 write = ''
         elif code[l] == '"':
             print(l)
-            i0, i1, string, concl = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
+            i0, i1, string, concl, cur = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
             if concl != CompilerConclusion(0):
-                return concl
+                return concl, cur
             l = i1 - 1
             write += string
         else:
@@ -37,7 +37,7 @@ def split_args1(code: str, start: int = 0, end: int | str = None):
     if write != '':
         args.append(write)
 
-    return args
+    return args, None
 
 def split_args2(code: str, start: int = 0):
     end = len(code)
@@ -53,9 +53,9 @@ def split_args2(code: str, start: int = 0):
                 args.append(write)
                 write = ''
         elif code[l] == '"':
-            i0, i1, string, concl = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
+            i0, i1, string, concl, cur = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
             if concl != CompilerConclusion(0):
-                return 0, concl
+                return 0, concl, cur
             l = i1 - 1
             write += string
         else:
@@ -65,4 +65,4 @@ def split_args2(code: str, start: int = 0):
     if write != '':
         args.append(write)
 
-    return end+1, args
+    return end+1, args, None

@@ -1,4 +1,4 @@
-from core.compiler_conclusions_cursors import CompilerConclusion
+from core.compiler_conclusions_cursors import *
 
 ROUND, SQUARE, CURLY, DOUBLEQUOTEMARK, SINGLEQUOTEMARK = range(5)
 QUOTEMARK = DOUBLEQUOTEMARK
@@ -24,15 +24,15 @@ def string_embedded_quotemark(code: str, start: int, sepsym: str):
                     write += sepsym
                     l += 2
                 else:
-                    return 0, 0, '', CompilerConclusion(202)
+                    return 0, 0, '', CompilerConclusion(202), CompilerCursor(code, l)
             else:
                 write += code[l]
                 l += 1
         if count >= 2:
             break
     else:
-        return 0, 0, '', CompilerConclusion(201)
-    return indexes[0], indexes[1]+1, write, CompilerConclusion(0)
+        return 0, 0, '', CompilerConclusion(201), CompilerCursor(code, start)
+    return indexes[0], indexes[1]+1, write, CompilerConclusion(0), None
 
 def string_embedded_brackets(code: str, start: int, sepsym: str):
     indexes = [-1, -1]
@@ -49,15 +49,15 @@ def string_embedded_brackets(code: str, start: int, sepsym: str):
                     write += code[l]
                     l += 1
                 else:
-                    l0, l1, add, concl = string_embedded(code, l, EOC.index(code[l]))
+                    l0, l1, add, concl, cur = string_embedded(code, l, EOC.index(code[l]))
                     if concl != CompilerConclusion(0):
-                        return 0, 0, '', concl
+                        return 0, 0, '', concl, cur
                     write += add
                     l = l1
             else:
-                l0, l1, add, concl = string_embedded(code, l, EOC.index(code[l]))
+                l0, l1, add, concl, cur = string_embedded(code, l, EOC.index(code[l]))
                 if concl != CompilerConclusion(0):
-                    return 0, 0, '', concl
+                    return 0, 0, '', concl, cur
                 write += add
                 l = l1
         elif code[l] == sepsym[1]:
@@ -66,13 +66,13 @@ def string_embedded_brackets(code: str, start: int, sepsym: str):
                 write += code[l]
                 break
             else:
-                return 0, 0, '', CompilerConclusion(201)
+                return 0, 0, '', CompilerConclusion(201), CompilerCursor(code, l)
         else:
             write += code[l]
             l += 1
     else:
-        return 0, 0, '', CompilerConclusion(201)
-    return indexes[0], indexes[1]+1, write, CompilerConclusion(0)
+        return 0, 0, '', CompilerConclusion(201), CompilerCursor(code, start)
+    return indexes[0], indexes[1]+1, write, CompilerConclusion(0), None
 
 def string_embedded(code: str, start: int, separationtype: int):
     sepsym = ['()', '[]', '{}', '"', "'"][separationtype]
@@ -85,6 +85,6 @@ def string_embedded(code: str, start: int, separationtype: int):
 def string_only_embedded(code: str, start: int, separationtype: int):
     ret = string_embedded(code, start, separationtype)
     if ret[3] == CompilerConclusion(0):
-        return ret[0], ret[1], ret[2][1:-1], ret[3], EOC.index(ret[2][0])
+        return ret[0], ret[1], ret[2][1:-1], ret[3], EOC.index(ret[2][0]), None
     else:
         return ret

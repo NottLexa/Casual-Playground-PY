@@ -14,9 +14,8 @@ def chapter_cell(code: str, startl: int):
         ret['type'] = 'CELL'
 
         write = split_args1(code, l, '\n')
-        print(write)
-        if type(write) is CompilerConclusion:
-            return 0, {}, write, None
+        if type(write[0]) is CompilerConclusion:
+            return 0, {}, write[0], write[1]
         if len(write) > 0:
             ret['name'] = eval(write[0])
         if len(write) > 1:
@@ -30,9 +29,9 @@ def chapter_notexture(code: str, startl: int):
         ret['notexture'] = [0, 0, 0]
         l += 9
 
-        l, write = split_args2(code, l)
+        l, write, cur = split_args2(code, l)
         if type(write) is CompilerConclusion:
-            return 0, {}, write, None
+            return 0, {}, write, cur
         if len(write) > 0:
             ret['notexture'][0] = int(float(write[0]))
         if len(write) > 1:
@@ -52,9 +51,9 @@ def chapter_localization(code: str, startl: int):
         l += 1
         while code[l:l + 4] == '    ':
             l += 4
-            l, write = split_args2(code, l)
+            l, write, cur = split_args2(code, l)
             if type(write) is CompilerConclusion:
-                return 0, {}, write, None
+                return 0, {}, write, cur
             lang, name, desc = write
             ret_localization[lang] = {'name': eval(name), 'desc': eval(desc)}
     return l, ret_localization, CompilerConclusion(0), None
@@ -115,7 +114,7 @@ def get(code: str, start: int, end: int = None) -> get_hinting:
     return ret, CompilerConclusion(0), None
 
 def read_code(code: str, startl: int, version: int, tab: int = 0):
-    code_sequence = ccb.BlockSentence()
+    code_sequence = ccb.BlockSequence()
     end = len(code)
     l = startl
     while l < end:
@@ -126,13 +125,17 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
         if spaces < tab*4: # not in tab
             break
         elif spaces > tab*4: # upper tab
-            l, upper_tab = read_code(code, l-spaces, tab+1, version)
+            l, upper_tab, concl, cur = read_code(code, l-spaces, tab+1, version)
+            if concl != CompilerConclusion(0):
+                return 0, ccb.BlockSequence(), concl, cur
             if type(code_sequence[-1]) is ccb.While:
                 code_sequence[-1].block = upper_tab
         else:
-            block, l = read_line(code, l-spaces, version, tab)
+            block, l, concl, cur = read_line(code, l-spaces, version, tab)
+            if concl != CompilerConclusion(0):
+                return 0, ccb.BlockSequence(), concl, cur
             code_sequence.add(block)
-    return l+1, code_sequence
+    return l+1, code_sequence, CompilerConclusion(0), None
 
 def read_line(code: str, startl: int, version: int, tab: int = 0):
     end = len(code)
@@ -148,6 +151,8 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
     cond2a = lambda: brackets['r'] == brackets['s'] == brackets['c'] == brackets['q'] == 0
     cond2b = lambda l: code[l] == '\n'
 
-    l, write = split_args2(code, l)
+    l, write, cur = split_args2(code, l)
+    if type(write) is CompilerConclusion:
+        return None, 0, write, cur
     block = cld.definer(write, version)
-    return block, l
+    return block, l, CompilerConclusion(0), None
