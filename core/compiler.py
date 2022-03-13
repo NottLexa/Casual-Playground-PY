@@ -199,7 +199,7 @@ def get_version1(code: str, start: int, end: int = None) -> get_hinting:
         l, ret_expand, concl, cursor = chapter_localization(code, l)
         if concl != CompilerConclusion(0):
             return {}, concl, cursor
-        ret.update(ret_expand)
+        ret['localization'].update(ret_expand)
         l, ret_expand, concl, cursor = chapter_script(code, l, ret['version'])
         if concl != CompilerConclusion(0):
             return {}, concl, cursor

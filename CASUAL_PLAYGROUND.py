@@ -127,8 +127,8 @@ for folder in os.listdir(modsfolder):
                 moddata['official'] = 0
                 objdata[modname] = moddata
                 idlist.append(modname)'''
-print('', idlist, list(enumerate(idlist)))
-print(objdata)
+print(idlist, list(enumerate(idlist)))
+print(engine.recursive_iterable(objdata))
 
 cell_fill_on_init = objdata['grass']
 #endregion
