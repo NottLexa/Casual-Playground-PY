@@ -69,3 +69,5 @@ class CompilerConclusion:
         return self.code != other.code
     def __ne__(self, other):
         return self.code != other.code
+
+get_hinting = (dict, CompilerConclusion, (CompilerCursor | None))
