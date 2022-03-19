@@ -4,7 +4,9 @@
 
 from core.compiler_other_instruments import *
 import core.compiler_code_blocks as ccb
-import core.compiler_line_definer as cld
+
+MO = MATHOPERATORS = ['+-', '*/']
+SET_MO = set(''.join(MO))
 
 def chapter_cell(code: str, startl: int):
     l = startl
@@ -13,9 +15,9 @@ def chapter_cell(code: str, startl: int):
         l += 4
         ret['type'] = 'CELL'
 
-        write = split_args1(code, l, '\n')
-        if type(write[0]) is CompilerConclusion:
-            return 0, {}, write[0], write[1]
+        write, concl, cur = split_args1(code, l, '\n')
+        if not correct_concl(concl):
+            return 0, {}, concl, cur
         if len(write) > 0:
             ret['name'] = eval(write[0])
         if len(write) > 1:
@@ -29,9 +31,9 @@ def chapter_notexture(code: str, startl: int):
         ret['notexture'] = [0, 0, 0]
         l += 9
 
-        l, write, cur = split_args2(code, l)
-        if type(write) is CompilerConclusion:
-            return 0, {}, write, cur
+        l, write, concl, cur = split_args2(code, l)
+        if not correct_concl(concl):
+            return 0, {}, concl, cur
         if len(write) > 0:
             ret['notexture'][0] = int(float(write[0]))
         if len(write) > 1:
@@ -51,9 +53,9 @@ def chapter_localization(code: str, startl: int):
         l += 1
         while code[l:l + 4] == '    ':
             l += 4
-            l, write, cur = split_args2(code, l)
-            if type(write) is CompilerConclusion:
-                return 0, {}, write, cur
+            l, write, concl, cur = split_args2(code, l)
+            if not correct_concl(concl):
+                return 0, {}, concl, cur
             lang, name, desc = write
             ret_localization[lang] = {'name': eval(name), 'desc': eval(desc)}
     return l, ret_localization, CompilerConclusion(0), None
@@ -66,13 +68,16 @@ def chapter_script(code: str, startl: int, version: int):
         while code[l] == ' ':
             l += 1
         write = ''
-        while code[l] != ' ':
+        while code[l] not in '\n ':
             write += code[l]
+            l += 1
         script_type = write.lower()
         while code[l] != '\n':
             l += 1
         l += 1
-        l, ret_script[script_type] = read_code(code, l, tab=1, version=version)
+        l, ret_script[script_type], concl, cur = read_code(code, l, tab=1, version=version)
+        if concl != CompilerConclusion(0):
+            return 0, {}, concl, cur
     return l, ret_script, CompilerConclusion(0), None
 
 def get(code: str, start: int, end: int = None) -> get_hinting:
@@ -151,8 +156,65 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
     cond2a = lambda: brackets['r'] == brackets['s'] == brackets['c'] == brackets['q'] == 0
     cond2b = lambda l: code[l] == '\n'
 
-    l, write, cur = split_args2(code, l)
-    if type(write) is CompilerConclusion:
-        return None, 0, write, cur
-    block = cld.definer(write, version)
+    l, write, concl, cur = split_args2(code, l)
+    if not correct_concl(concl):
+        return None, 0, concl, cur
+    block = definer(write)
     return block, l, CompilerConclusion(0), None
+
+def definer(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
+    if len(parts) == 1:
+        parts = parts[0]
+        if (ind := '=' in parts) != -1: # SETVAR
+            return definer_setvar([parts[:ind], parts[ind:ind+1], parts[ind+1:]])
+        else:
+            return ccb.Block(ccb.Global.UNKNOWNBLOCK)
+    else:
+        if '=' == parts[1]: # SETVAR
+            return definer_setvar(parts)
+        else:
+            return ccb.Block(ccb.Global.UNKNOWNBLOCK)
+
+def definer_setvar(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
+    valuew = value_determinant(parts[0:1])
+    valuer = value_determinant(parts[2:])
+    return ccb.Block(ccb.Global.SETVAR, valuew, valuer)
+
+def complex_determinant(codeparts) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+    joined = ''.join(codeparts)
+    if any(m in joined for m in SET_MO): #any(x in SET_MO for x in codeparts): # math
+        return math_resolver(codeparts)
+
+def simple_determinant(codepart) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+    if codepart[0] == '_': # localvar
+        return ccb.Value(ccb.Global.LOCALVAR, codepart[1:]), CompilerConclusion(0), None
+    else:
+        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(205), None
+
+def value_determinant(codeparts) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+    if len(codeparts) == 1:
+        return simple_determinant(codeparts[0])
+    else:
+        return complex_determinant(codeparts)
+
+def math_resolver(allparts) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+    inp = []
+    for part in allparts:
+        write, concl, cur = split_args3(part, *SET_MO)
+        if not correct_concl(concl):
+            return ccb.Value(ccb.Global.EMPTY), concl, cur
+        inp.extend(write)
+    for mop in MO:
+        for mos in mop:
+            try:
+                l = inp.index(mos)
+                vd1, concl, cur = value_determinant(inp[:l])
+                if not correct_concl(concl):
+                    return ccb.Value(ccb.Global.EMPTY), concl, cur
+                vd2, concl, cur = value_determinant(inp[l+1:])
+                if not correct_concl(concl):
+                    return ccb.Value(ccb.Global.EMPTY), concl, cur
+                args = [vd1, vd2]
+                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div'}[mos], None, args), CompilerConclusion(0), None
+            except ValueError:
+                continue

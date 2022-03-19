@@ -154,6 +154,11 @@ def FieldBoard_center_view(target):
     target.viewx = (target.viewscale*target.board_width//2) - (WIDTH2)
     target.viewy = (target.viewscale*target.board_height//2) - (HEIGHT2)
 
+def FieldBoard_board_step(target):
+    for y in range(target.board_height):
+        for x in range(target.board_width):
+            target.board[y][x].step()
+
 def FieldBoard_create(target):
     target.board_width = 32
     target.board_height = 32
@@ -205,8 +210,10 @@ def FieldBoard_step(target):
             if 0 <= cx < maxcx and 0 <= cy < maxcy:
                 if (rx%target.viewscale < (target.viewscale-bordersize) and
                     ry%target.viewscale < (target.viewscale-bordersize)):
-                    #target.board[int(cy)][int(cx)] = current_instrument['cell']
+                    target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, objdata[idlist[current_instrument['cell']]])
                     target.surfaces['board'] = FieldBoard_user_draw_board(target)
+
+    FieldBoard_board_step(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
 

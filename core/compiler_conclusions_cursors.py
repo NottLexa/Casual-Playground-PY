@@ -37,7 +37,9 @@ class CompilerConclusion:
             0: 'Syntax error: no specified reason',
             1: 'Syntax error: unclosed brackets or quote marks',
             2: 'Syntax error: impossible usage of backslash in quote marks',
-            3: 'Syntax error: unexpected symbol/expression'
+            3: 'Syntax error: unexpected symbol/expression',
+            4: 'Syntax error: unclosed math operation',
+            5: 'Syntax error: unidentifiable value'
         }.values()),
     ]
 
@@ -60,8 +62,16 @@ class CompilerConclusion:
     def short_conclusion(self) -> str:
         return f'<CompilerConclusion with ID {self.code}: {CompilerConclusion.get_description(self.code)}>'
     def __eq__(self, other):
-        return self.code != other.code
+        try:
+            return self.code == other.code
+        except AttributeError:
+            return False
     def __ne__(self, other):
-        return self.code != other.code
+        try:
+            return self.code != other.code
+        except AttributeError:
+            return False
 
 get_hinting = (dict, CompilerConclusion, (CompilerCursor | None))
+
+correct_concl = lambda concl: concl == CompilerConclusion(0)

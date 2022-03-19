@@ -3,6 +3,7 @@ from core.compiler_conclusions_cursors import *
 ROUND, SQUARE, CURLY, DOUBLEQUOTEMARK, SINGLEQUOTEMARK = range(5)
 QUOTEMARK = DOUBLEQUOTEMARK
 EOC = EMBEDDED_OPENING_CHARS = '([{"\''
+EOC_index = {EOC[x]:x for x in range(len(EOC))}
 SET_EOC = set(EOC)
 BS = '\\'
 
@@ -49,17 +50,15 @@ def string_embedded_brackets(code: str, start: int, sepsym: str):
                     write += code[l]
                     l += 1
                 else:
-                    l0, l1, add, concl, cur = string_embedded(code, l, EOC.index(code[l]))
-                    if concl != CompilerConclusion(0):
+                    _, l, add, concl, cur = string_embedded(code, l, EOC_index[code[l]])
+                    if not correct_concl(concl):
                         return 0, 0, '', concl, cur
                     write += add
-                    l = l1
             else:
-                l0, l1, add, concl, cur = string_embedded(code, l, EOC.index(code[l]))
-                if concl != CompilerConclusion(0):
+                _, l, add, concl, cur = string_embedded(code, l, EOC_index[code[l]])
+                if not correct_concl(concl):
                     return 0, 0, '', concl, cur
                 write += add
-                l = l1
         elif code[l] == sepsym[1]:
             if opened == True:
                 indexes[1] = l
@@ -84,7 +83,7 @@ def string_embedded(code: str, start: int, separationtype: int):
 
 def string_only_embedded(code: str, start: int, separationtype: int):
     ret = string_embedded(code, start, separationtype)
-    if ret[3] == CompilerConclusion(0):
-        return ret[0], ret[1], ret[2][1:-1], ret[3], EOC.index(ret[2][0]), None
+    if not correct_concl(ret[3]):
+        return ret[0], ret[1], ret[2][1:-1], ret[3], EOC_index[ret[2][0]], None
     else:
         return ret
