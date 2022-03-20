@@ -7,7 +7,9 @@ class Global:
         return ['UNKNOWNBLOCK', 'SETVAR', 'RUNFUNC'][value_to_name]
 
 class BlockSequence:
-    def __init__(self, blocks: list = []):
+    def __init__(self, blocks=None):
+        if blocks is None:
+            blocks = []
         self.blocks = blocks
     def muladd(self, other):
         self.blocks.extend(other)
@@ -111,7 +113,7 @@ class Value:
             localsource = self.source
         match self.type:
             case Global.FUNC:
-                return self.value(*self.args)
+                return localsource[self.value](*self.args)
             case Global.LOCALVAR:
                 return localsource.localvars[self.value]
             case Global.TECHVAR:
