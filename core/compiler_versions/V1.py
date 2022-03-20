@@ -140,7 +140,7 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
             if concl != CompilerConclusion(0):
                 return 0, ccb.BlockSequence(), concl, cur
             code_sequence.add(block)
-    return l+1, code_sequence, CompilerConclusion(0), None
+    return l, code_sequence, CompilerConclusion(0), None
 
 def read_line(code: str, startl: int, version: int, tab: int = 0):
     end = len(code)
@@ -223,6 +223,21 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
                 if not correct_concl(concl):
                     return ccb.Value(ccb.Global.EMPTY), concl, cur
                 args = [vd1, vd2]
-                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div'}[mos], None, args), CompilerConclusion(0), None
+                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div'}[mos], CoreFuncs, args), CompilerConclusion(0), None
             except ValueError:
                 continue
+
+class CoreFuncs:
+    def add(self, *args):
+        return args[0] + args[1]
+    def sub(self, *args):
+        return args[0] - args[1]
+    def mul(self, *args):
+        return args[0] * args[1]
+    def div(self, *args):
+        return args[0] / args[1]
+    def __getitem__(self, item):
+        if item in dir(self):
+            return getattr(self, item)
+        else:
+            return lambda: None
