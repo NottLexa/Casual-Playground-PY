@@ -83,6 +83,18 @@ class Block:
         return f'<Block {Global.back_funcs(self.type)} ({", ".join(map(str, self.data))})>'
     def __repr__(self):
         return f'<B:{Global.back_funcs(self.type)}:({", ".join(map(str, self.data))})>'
+    def __iter__(self):
+        self.iter_count = 0
+        return self
+    def __next__(self):
+        if self.iter_count < 2:
+            self.iter_count += 1
+            if self.iter_count == 1:
+                return self.type
+            if self.iter_count == 2:
+                return self.data
+        else:
+            raise StopIteration
 
 class Value:
     def __init__(self, type, value=None, source=None, args: list = None):
