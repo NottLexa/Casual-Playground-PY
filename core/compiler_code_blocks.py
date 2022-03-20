@@ -33,6 +33,16 @@ class BlockSequence:
     def recursive_str(self, tab=0):
         spaces = ' '*(4*tab)
         return '\n'.join([spaces+'<Block Sentence:', *[x.recursive_str(tab+1) for x in self.blocks], spaces+'>'])
+    def __iter__(self):
+        self.iter_count = 0
+        return self
+    def __next__(self):
+        if self.iter_count < len(self.blocks):
+            x = self.blocks[self.iter_count]
+            self.iter_count += 1
+            return repr(x)
+        else:
+            raise StopIteration
 
 class Gate:
     def __init__(self, cond_blocks = None, false_block = None):
@@ -71,6 +81,8 @@ class Block:
                 pass
     def __str__(self):
         return f'<Block {Global.back_funcs(self.type)} ({", ".join(map(str, self.data))})>'
+    def __repr__(self):
+        return f'<B:{Global.back_funcs(self.type)}:({", ".join(map(str, self.data))})>'
 
 class Value:
     def __init__(self, type, value=None, source=None, args: list = None):
