@@ -479,33 +479,35 @@ class Screen:
         return (mx - ox) / self.scale_level, (my - oy) / self.scale_level
 
 
-def reciter(iter: dict, tab: int = 0, spacenum: int = 2, symbols='[]'):
+def reciter(iter: dict, tab: int = 0, spacenum: int = 2, symbols='[]', rules: dict = None):
+    iterables = rules.keys()
     spaces = ' ' * (spacenum*tab)
     spaces1 = spaces + (' '*spacenum)
     ret = []
     ret.append(spaces + symbols[0])
     for i in iter:
-        if isinstance(i, dict | tuple | list):
-            ret.append(recursive_iterable(i, tab+2, spacenum))
+        if type(i) in iterables:
+            ret.append(recursive_iterable(i, tab+2, spacenum, rules))
         else:
             ret.append(spaces1 + repr(i))
-        if i != iter[-1]:
+        if hasattr(iter, '__getitem__') and i != iter[-1]:
             ret[-1] += ','
     ret.append(spaces + symbols[1])
     return '\n'.join(ret)
 
-def reciter_with_keys(iter: dict, tab: int = 0, spacenum: int = 2, symbols='{}'):
+
+def reciter_with_keys(iter: dict, tab: int = 0, spacenum: int = 2, symbols='{}', rules: dict = None):
+    iterables = rules.keys()
     spaces = ' '*(spacenum*tab)
     spaces1 = spaces + (' '*spacenum)
     spaces2 = spaces1 + (' '*spacenum)
     ret = []
     ret.append(spaces+symbols[0])
     enum = list(iter.items())
-    print(iter, enum)
     for key, cont in enum:
         ret.append(spaces1+str(key)+':')
-        if isinstance(cont, dict | tuple | list):
-            ret.append(recursive_iterable(cont, tab+2, spacenum))
+        if type(cont) in iterables:
+            ret.append(recursive_iterable(cont, tab+2, spacenum, rules))
         else:
             ret.append(spaces2+repr(cont))
         if (key, cont) != enum[-1]:
@@ -514,13 +516,19 @@ def reciter_with_keys(iter: dict, tab: int = 0, spacenum: int = 2, symbols='{}')
     return '\n'.join(ret)
 
 
-def recursive_iterable(iter: dict | tuple | list, tab: int = 0, spacenum: int = 2):
-    if isinstance(iter, dict):
-        return reciter_with_keys(iter, tab, spacenum, '{}')
-    elif isinstance(iter, tuple):
-        return reciter(iter, tab, spacenum, '()')
-    elif isinstance(iter, list):
-        return reciter(iter, tab, spacenum, '[]')
+def recursive_iterable(iter: dict | tuple | list, tab: int = 0, spacenum: int = 2, rules: dict = None):
+    if rules is None:
+        rules = {
+            dict: (True, '{', '}'),
+            tuple: (False, '(', ')'),
+            list: (False, '[', ']'),
+        }
+    for rule in rules:
+        if isinstance(iter, rule):
+            if rules[rule][0]:
+                return reciter_with_keys(iter, tab, spacenum, rules[rule][1:], rules)
+            else:
+                return reciter(iter, tab, spacenum, rules[rule][1:], rules)
 
 if __name__ == '__main__':
     pygame_init()
