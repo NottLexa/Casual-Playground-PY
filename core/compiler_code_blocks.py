@@ -113,7 +113,7 @@ class Value:
             localsource = self.source
         match self.type:
             case Global.FUNC:
-                return localsource[self.value](*self.args)
+                return self.source[self.value](localcell, *self.args)
             case Global.LOCALVAR:
                 return localsource.localvars[self.value]
             case Global.TECHVAR:
