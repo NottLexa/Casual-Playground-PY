@@ -180,38 +180,42 @@ def definer_setvar(parts: list[str]) -> (ccb.Block, CompilerConclusion, (Compile
     valuer = value_determinant(parts[2:])
     return ccb.Block(ccb.Global.SETVAR, valuew, valuer)
 
-def complex_determinant(codeparts) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     joined = ''.join(codeparts)
     if any(m in joined for m in SET_MO): #any(x in SET_MO for x in codeparts): # math
-        return math_resolver(codeparts)
+        inp = []
+        for part in codeparts:
+            write, concl, cur = split_args3(part, *SET_MO)
+            if not correct_concl(concl):
+                return ccb.Value(ccb.Global.EMPTY), concl, cur
+            inp.extend(write)
+        return math_resolver(inp)
 
-def simple_determinant(codepart) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if codepart[0] == '_': # localvar
         return ccb.Value(ccb.Global.LOCALVAR, codepart[1:]), CompilerConclusion(0), None
+    elif codepart.isdigit():
+        return ccb.Value(ccb.Global.FIXEDVAR, int(codepart))
+    elif codepart.replace('.', '', 1).isdigit():
+        return ccb.Value(ccb.Global.FIXEDVAR, float(codepart))
     else:
         return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(205), None
 
-def value_determinant(codeparts) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
+def value_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if len(codeparts) == 1:
         return simple_determinant(codeparts[0])
     else:
         return complex_determinant(codeparts)
 
-def math_resolver(allparts) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
-    inp = []
-    for part in allparts:
-        write, concl, cur = split_args3(part, *SET_MO)
-        if not correct_concl(concl):
-            return ccb.Value(ccb.Global.EMPTY), concl, cur
-        inp.extend(write)
+def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     for mop in MO:
         for mos in mop:
             try:
-                l = inp.index(mos)
-                vd1, concl, cur = value_determinant(inp[:l])
+                l = allparts.index(mos)
+                vd1, concl, cur = value_determinant(allparts[:l])
                 if not correct_concl(concl):
                     return ccb.Value(ccb.Global.EMPTY), concl, cur
-                vd2, concl, cur = value_determinant(inp[l+1:])
+                vd2, concl, cur = value_determinant(allparts[l+1:])
                 if not correct_concl(concl):
                     return ccb.Value(ccb.Global.EMPTY), concl, cur
                 args = [vd1, vd2]

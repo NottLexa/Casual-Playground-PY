@@ -40,7 +40,7 @@ class BlockSequence:
         if self.iter_count < len(self.blocks):
             x = self.blocks[self.iter_count]
             self.iter_count += 1
-            return repr(x)
+            return x
         else:
             raise StopIteration
 
@@ -90,7 +90,7 @@ class Block:
         if self.iter_count < 2:
             self.iter_count += 1
             if self.iter_count == 1:
-                return self.type
+                return Global.back_funcs(self.type)
             if self.iter_count == 2:
                 return self.data
         else:
