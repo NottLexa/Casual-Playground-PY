@@ -176,9 +176,13 @@ def definer(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor
             return ccb.Block(ccb.Global.UNKNOWNBLOCK)
 
 def definer_setvar(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
-    valuew = value_determinant(parts[0:1])
-    valuer = value_determinant(parts[2:])
-    return ccb.Block(ccb.Global.SETVAR, valuew, valuer)
+    w, concl, cur = value_determinant(parts[0:1])
+    if not correct_concl(concl):
+        return ccb.Value(ccb.Global.EMPTY), concl, cur
+    r, concl, cur = value_determinant(parts[2:])
+    if not correct_concl(concl):
+        return ccb.Value(ccb.Global.EMPTY), concl, cur
+    return ccb.Block(ccb.Global.SETVAR, w, r)
 
 def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     joined = ''.join(codeparts)
@@ -195,9 +199,9 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
     if codepart[0] == '_': # localvar
         return ccb.Value(ccb.Global.LOCALVAR, codepart[1:]), CompilerConclusion(0), None
     elif codepart.isdigit():
-        return ccb.Value(ccb.Global.FIXEDVAR, int(codepart))
+        return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), None
     elif codepart.replace('.', '', 1).isdigit():
-        return ccb.Value(ccb.Global.FIXEDVAR, float(codepart))
+        return ccb.Value(ccb.Global.FIXEDVAR, float(codepart)), CompilerConclusion(0), None
     else:
         return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(205), None
 
