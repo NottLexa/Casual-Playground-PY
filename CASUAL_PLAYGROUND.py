@@ -7,6 +7,9 @@ import math
 #from core import compiler as cpc
 import core.nle as engine
 import core.compiler as comp
+import core.compiler_code_blocks as ccb
+from core.compiler_conclusions_cursors import *
+from datetime import datetime
 
 #region [ИНИЦИАЛИЗАЦИЯ]
 
@@ -21,7 +24,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #13
+  Alexey Kozhanov                                                                     #14
                                                                                DVLP BUILD
 ''')
 
@@ -37,6 +40,22 @@ pygame.init()
 #endregion
 
 #region [LOADING FUNCTIONS]
+def timeformat(dt: datetime, type: int):
+    date = f'{dt.day}.{dt.month}.{dt.year}'
+    time = f'{dt.hour}:{dt.minute}:{dt.second}'
+    ms = f'.{dt.microsecond}'
+    match type:
+        case 0:
+            return date
+        case 1:
+            return date + ' ' + time
+        case 2:
+            return date + ' ' + time + ms
+        case 3:
+            return time
+        case 4:
+            return time + ms
+
 def load_fonts(fontsfolder):
     fontsdict = {}
     for m in os.listdir(fontsfolder):
@@ -58,7 +77,12 @@ def load_mod(modfolder, author, official):
         if ntpath.isfile(path):
             if path[-4:] == '.mod':
                 with open(path, 'r', encoding='utf8') as f:
-                    moddata = comp.get(f.read())[0]
+                    moddata, concl, cur = comp.get(f.read())
+                    if not correct_concl(concl):
+                        time = f'[{timeformat(datetime.now(), 1)}]'
+                        print(f'{time} CasualPlayground Compiler encountered an error!')
+                        #print(f'{time} ')
+                        continue
                 modname = m[:-4]
                 moddata['author'] = author
                 moddata['official'] = official
@@ -128,7 +152,12 @@ for folder in os.listdir(modsfolder):
                 objdata[modname] = moddata
                 idlist.append(modname)'''
 print(idlist, list(enumerate(idlist)))
-print(engine.recursive_iterable(objdata))
+print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
+                                                tuple: (False, '(', ')'),
+                                                list: (False, '[', ']'),
+                                                ccb.BlockSequence: (False, '<BlockSeq', '>'),
+                                                ccb.Block: (False, '<Block', '>'),
+                                                }))
 
 cell_fill_on_init = objdata['grass']
 #endregion
@@ -190,6 +219,9 @@ def FieldBoard_create(target):
 
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
 
+    target.time = 0.0
+    target.timepertick = 1.0
+
 def FieldBoard_step(target):
     target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
     target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
@@ -213,9 +245,12 @@ def FieldBoard_step(target):
                     target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, objdata[idlist[current_instrument['cell']]])
                     target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
-    FieldBoard_board_step(target)
-
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
+
+    target.time += deltatime
+    if target.time > target.timepertick:
+        FieldBoard_board_step(target)
+        target.time = 0
 
 def FieldBoard_draw(target, surface: pygame.Surface):
     bordersize = round(target.viewscale / 8)
