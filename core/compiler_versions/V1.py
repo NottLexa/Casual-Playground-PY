@@ -227,23 +227,16 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
             except ValueError:
                 continue
 
-class MetaFuncs(type):
-    def __getitem__(cls, item):
-        if item in dir(cls):
-            return getattr(cls, item)
-        else:
-            return lambda: None
-
-class CoreFuncs(metaclass=MetaFuncs):
+class CoreFuncs():
     @staticmethod
-    def add(localcell = None, *args):
-        return args[0].read(localcell) + args[1].read(localcell)
+    def add(data = None, *args):
+        return args[0].read(data) + args[1].read(data)
     @staticmethod
-    def sub(localcell = None, *args):
-        return args[0].read(localcell) - args[1].read(localcell)
+    def sub(data = None, *args):
+        return args[0].read(data) - args[1].read(data)
     @staticmethod
-    def mul(localcell = None, *args):
-        return args[0].read(localcell) * args[1].read(localcell)
+    def mul(data = None, *args):
+        return args[0].read(data) * args[1].read(data)
     @staticmethod
-    def div(localcell = None, *args):
-        return args[0].read(localcell) / args[1].read(localcell)
+    def div(data = None, *args):
+        return args[0].read(data) / args[1].read(data)

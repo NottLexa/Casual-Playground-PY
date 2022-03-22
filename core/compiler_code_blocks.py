@@ -23,7 +23,7 @@ class BlockSequence:
         return BlockSequence(self.blocks + other.blocks)
     def __call__(self, localcell = None):
         for b in self.blocks:
-            b(localcell=localcell)
+            b(localcell)
     def __getitem__(self, index):
         return self.blocks[index]
     def __setitem__(self, index, value):
@@ -54,19 +54,19 @@ class Gate:
         self.fb = false_block
     def __call__(self, localcell = None):
         for cond in self.cb:
-            self.cb[cond](localcell=localcell)
+            self.cb[cond](localcell)
             break
         else:
             if self.fb is not None:
-                self.fb(localcell=localcell)
+                self.fb(localcell)
 
 class While:
     def __init__(self, cond, block):
         self.cond = cond
         self.block = block
     def __call__(self, localcell = None):
-        while self.cond(localcell=localcell):
-            self.block(localcell=localcell)
+        while self.cond(localcell):
+            self.block(localcell)
 
 class Block:
     def __init__(self, type, *data):
@@ -76,9 +76,9 @@ class Block:
         match self.type:
             case Global.SETVAR:
                 writeto, readfrom = self.data
-                writeto.write(readfrom.read(localcell=localcell), localcell=localcell)
+                writeto.write(readfrom.read(localcell), localcell)
             case Global.RUNFUNC:
-                self.data[0](localcell=localcell)
+                self.data[0](localcell)
             case _:
                 pass
     def __str__(self):
@@ -107,33 +107,33 @@ class Value:
         self.source = source
         self.args = args
     def read(self, localcell = None):
-        if localcell is not None:
-            localsource = localcell
+        if self.source is not None:
+            sourcedata = self.source
         else:
-            localsource = self.source
+            sourcedata = localcell
         match self.type:
             case Global.FUNC:
-                return self.source[self.value](localcell, *self.args)
+                return getattr(self.source, self.value)(localcell, *self.args)
             case Global.LOCALVAR:
-                return localsource.localvars[self.value]
+                return sourcedata.locals[self.value]
             case Global.TECHVAR:
-                return localsource.techvars[self.value]
+                return sourcedata.techvars[self.value]
             case Global.GLOBALVAR:
-                return self.source[self.value]
+                return sourcedata.globals[self.value]
             case Global.FIXEDVAR:
                 return self.value
     def write(self, newvalue, localcell = None):
-        if localcell is not None:
-            localsource = localcell
+        if self.source is not None:
+            sourcedata = self.source
         else:
-            localsource = self.source
+            sourcedata = localcell
         match self.type:
             case Global.LOCALVAR:
-                localsource.localvars[self.value] = newvalue
+                sourcedata.locals[self.value] = newvalue
             case Global.TECHVAR:
-                localsource.techvars[self.value] = newvalue
+                sourcedata.techvars[self.value] = newvalue
             case Global.GLOBALVAR:
-                self.source[self.value] = newvalue
+                sourcedata.globals[self.value] = newvalue
     def __repr__(self):
         match self.type:
             case Global.FUNC:

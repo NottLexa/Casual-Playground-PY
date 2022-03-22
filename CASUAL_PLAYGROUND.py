@@ -24,7 +24,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #14
+  Alexey Kozhanov                                                                     #15
                                                                                DVLP BUILD
 ''')
 
@@ -160,6 +160,8 @@ print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 }))
 
 cell_fill_on_init = objdata['grass']
+
+global_variables = {}
 #endregion
 
 #region [ENTITY]
@@ -214,7 +216,7 @@ def FieldBoard_create(target):
     for y in range(target.board_height):
         target.board.append([])
         for x in range(target.board_width):
-            celldata = comp.Cell({'X': x, 'Y': y}, cell_fill_on_init)
+            celldata = comp.Cell({'X': x, 'Y': y}, cell_fill_on_init, target.board, global_variables)
             target.board[-1].append(celldata)
 
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
@@ -242,7 +244,7 @@ def FieldBoard_step(target):
             if 0 <= cx < maxcx and 0 <= cy < maxcy:
                 if (rx%target.viewscale < (target.viewscale-bordersize) and
                     ry%target.viewscale < (target.viewscale-bordersize)):
-                    target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, objdata[idlist[current_instrument['cell']]])
+                    target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, objdata[idlist[current_instrument['cell']]], target.board, global_variables)
                     target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
