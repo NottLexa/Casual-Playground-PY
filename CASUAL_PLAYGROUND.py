@@ -24,7 +24,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #15
+  Alexey Kozhanov                                                                     #16
                                                                                DVLP BUILD
 ''')
 
@@ -160,6 +160,7 @@ print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 }))
 
 cell_fill_on_init = objdata['grass']
+cellbordersize = 0.5
 
 global_variables = {}
 #endregion
@@ -168,7 +169,7 @@ global_variables = {}
 #region [FIELD BOARD]
 def FieldBoard_user_draw_board(target):
     bw, bh = target.board_width, target.board_height
-    bordersize = round(target.viewscale/8)
+    bordersize = round(target.viewscale*cellbordersize)
     cellsize = target.viewscale
     surface = pygame.Surface((cellsize*bw+bordersize, cellsize*bh+bordersize), pygame.SRCALPHA)
     surface.fill(target.linecolor_infield)
@@ -230,7 +231,7 @@ def FieldBoard_step(target):
 
     if target.keys['rmb']:
         if current_instrument['type'] == 'pencil':
-            bordersize = round(target.viewscale/8)
+            bordersize = round(target.viewscale*cellbordersize)
             mx, my = screen.get_mousepos_on_canvas(pygame.mouse.get_pos())
             rx, ry = mx+target.viewx-bordersize, my+target.viewy-bordersize
 
@@ -255,7 +256,7 @@ def FieldBoard_step(target):
         target.time = 0
 
 def FieldBoard_draw(target, surface: pygame.Surface):
-    bordersize = round(target.viewscale / 8)
+    bordersize = round(target.viewscale*cellbordersize)
     cellsize = target.viewscale
     ox = -target.viewx%cellsize
     oy = -target.viewy%cellsize
