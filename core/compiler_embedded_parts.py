@@ -83,7 +83,7 @@ def string_embedded(code: str, start: int, separationtype: int):
 
 def string_only_embedded(code: str, start: int, separationtype: int):
     ret = string_embedded(code, start, separationtype)
-    if not correct_concl(ret[3]):
-        return ret[0], ret[1], ret[2][1:-1], ret[3], EOC_index[ret[2][0]], None
+    if correct_concl(ret[3]):
+        return ret[0], ret[1], ret[2][1:-1], ret[3], None
     else:
         return ret

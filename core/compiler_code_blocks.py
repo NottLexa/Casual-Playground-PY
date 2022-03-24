@@ -146,7 +146,7 @@ class Value:
             case Global.GLOBALVAR:
                 ret = f'@{self.value}' if (self.source is None) else f'@{self.source}.{self.value}'
             case Global.FIXEDVAR:
-                ret = str(self.value)
+                ret = repr(self.value)
             case Global.EMPTY:
                 ret = f'Empty'
             case _:

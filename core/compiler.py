@@ -41,8 +41,9 @@ class Cell:
         self.locals = {}
         self.board = board
         self.globals = globals_object
+        self.orders = []
         if self.code['script']['create'] is not None:
-            execreturn = self.code['script']['create'](self)
+            self.code['script']['create'](self)
     def step(self):
         if self.code['script']['step'] is not None:
-            execreturn = self.code['script']['step'](self)
+            self.code['script']['step'](self)

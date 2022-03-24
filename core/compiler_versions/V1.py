@@ -8,6 +8,11 @@ import core.compiler_code_blocks as ccb
 MO = MATHOPERATORS = ['+-', '*/']
 SET_MO = set(''.join(MO))
 
+class OrderTypes:
+    SET_CELL = range(1)
+
+ot = OrderTypes
+
 def chapter_cell(code: str, startl: int):
     l = startl
     ret = {}
@@ -202,6 +207,12 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
         return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), None
     elif codepart.replace('.', '', 1).isdigit():
         return ccb.Value(ccb.Global.FIXEDVAR, float(codepart)), CompilerConclusion(0), None
+    elif codepart[0] in '"\'':
+        st = cep.EOC_index[codepart[0]]
+        l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
+        if not correct_concl(concl):
+            return ccb.Value(ccb.Global.EMPTY), concl, cur
+        return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
     else:
         return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(205), None
 
@@ -227,16 +238,24 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
             except ValueError:
                 continue
 
-class CoreFuncs():
+class CoreFuncs:
     @staticmethod
-    def add(data = None, *args):
+    def add(data, *args):
         return args[0].read(data) + args[1].read(data)
     @staticmethod
-    def sub(data = None, *args):
+    def sub(data, *args):
         return args[0].read(data) - args[1].read(data)
     @staticmethod
-    def mul(data = None, *args):
+    def mul(data, *args):
         return args[0].read(data) * args[1].read(data)
     @staticmethod
-    def div(data = None, *args):
+    def div(data, *args):
         return args[0].read(data) / args[1].read(data)
+    @staticmethod
+    def setcell(data, *args):
+        data.orders.append(Order(ot.SET_CELL), args[0], args[1], args[2])
+
+class Order:
+    def __init__(self, type, *args):
+        self.type = type
+        self.args = args
