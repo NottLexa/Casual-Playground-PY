@@ -1,3 +1,5 @@
+import core.compiler_code_blocks_types as ccbt
+
 class Global:
     UNKNOWNBLOCK, SETVAR, RUNFUNC = range(3)
     FUNC, LOCALVAR, TECHVAR, GLOBALVAR, FIXEDVAR, EMPTY = range(6)
@@ -6,7 +8,7 @@ class Global:
     def back_funcs(value_to_name):
         return ['UNKNOWNBLOCK', 'SETVAR', 'RUNFUNC'][value_to_name]
 
-class BlockSequence:
+class BlockSequence(ccbt.BlockSequence):
     def __init__(self, blocks=None):
         if blocks is None:
             blocks = []
@@ -46,7 +48,7 @@ class BlockSequence:
         else:
             raise StopIteration
 
-class Gate:
+class Gate(ccbt.Gate):
     def __init__(self, cond_blocks = None, false_block = None):
         if cond_blocks is None:
             cond_blocks = []
@@ -60,7 +62,7 @@ class Gate:
             if self.fb is not None:
                 self.fb(localcell)
 
-class While:
+class While(ccbt.While):
     def __init__(self, cond, block):
         self.cond = cond
         self.block = block
@@ -68,7 +70,7 @@ class While:
         while self.cond(localcell):
             self.block(localcell)
 
-class Block:
+class Block(ccbt.Block):
     def __init__(self, type, *data):
         self.type = type
         self.data = data
@@ -98,7 +100,7 @@ class Block:
         else:
             raise StopIteration
 
-class Value:
+class Value(ccbt.Value):
     def __init__(self, type, value=None, source=None, args: list = None):
         if args is None:
             args = []

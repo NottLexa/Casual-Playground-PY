@@ -1,7 +1,7 @@
 from core.compiler_conclusions_cursors import *
-from core.compiler_versions import V1
+from core.compiler_versions import CPLv1
 
-COMPILER_VERSIONS = [V1]
+COMPILER_VERSIONS = [CPLv1]
 LAST_COMPILER_VERSION = len(COMPILER_VERSIONS)
 X, Y, CELLID = range(3)
 

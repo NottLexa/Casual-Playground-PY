@@ -1,4 +1,4 @@
-import core.compiler_embedded_parts as cep
+from . import compiler_embedded_parts as cep
 from core.compiler_conclusions_cursors import *
 
 def split_args1(code: str, start: int = 0, end: int | str = None):

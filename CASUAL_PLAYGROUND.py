@@ -7,7 +7,7 @@ import math
 #from core import compiler as cpc
 import core.nle as engine
 import core.compiler as comp
-import core.compiler_code_blocks as ccb
+import core.compiler_code_blocks_types as ccbt
 from core.compiler_conclusions_cursors import *
 from datetime import datetime
 
@@ -155,8 +155,8 @@ print(idlist, list(enumerate(idlist)))
 print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 tuple: (False, '(', ')'),
                                                 list: (False, '[', ']'),
-                                                ccb.BlockSequence: (False, '<BlockSeq', '>'),
-                                                ccb.Block: (False, '<Block', '>'),
+                                                ccbt.BlockSequence: (False, '<BlockSeq', '>'),
+                                                ccbt.Block: (False, '<Block', '>'),
                                                 }))
 
 cell_fill_on_init = objdata['grass']

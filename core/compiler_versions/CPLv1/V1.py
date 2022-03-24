@@ -2,8 +2,8 @@
 #
 # Hello world!
 
-from core.compiler_other_instruments import *
-import core.compiler_code_blocks as ccb
+from .compiler_other_instruments import *
+from . import compiler_code_blocks as ccb
 
 MO = MATHOPERATORS = ['+-', '*/']
 SET_MO = set(''.join(MO))

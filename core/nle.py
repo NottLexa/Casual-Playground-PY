@@ -524,7 +524,7 @@ def recursive_iterable(iter: dict | tuple | list, tab: int = 0, spacenum: int = 
             list: (False, '[', ']'),
         }
     for rule in rules:
-        if isinstance(iter, rule):
+        if issubclass(type(iter), rule):
             if rules[rule][0]:
                 return reciter_with_keys(iter, tab, spacenum, rules[rule][1:], rules)
             else:
