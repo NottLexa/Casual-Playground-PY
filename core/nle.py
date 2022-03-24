@@ -486,7 +486,7 @@ def reciter(iter: dict, tab: int = 0, spacenum: int = 2, symbols='[]', rules: di
     ret = []
     ret.append(spaces + symbols[0])
     for i in iter:
-        if type(i) in iterables:
+        if any(isinstance(i, r) for r in iterables):
             ret.append(recursive_iterable(i, tab+2, spacenum, rules))
         else:
             ret.append(spaces1 + repr(i))
@@ -506,7 +506,7 @@ def reciter_with_keys(iter: dict, tab: int = 0, spacenum: int = 2, symbols='{}',
     enum = list(iter.items())
     for key, cont in enum:
         ret.append(spaces1+str(key)+':')
-        if type(cont) in iterables:
+        if any(isinstance(cont, r) for r in iterables):
             ret.append(recursive_iterable(cont, tab+2, spacenum, rules))
         else:
             ret.append(spaces2+repr(cont))
@@ -524,7 +524,7 @@ def recursive_iterable(iter: dict | tuple | list, tab: int = 0, spacenum: int = 
             list: (False, '[', ']'),
         }
     for rule in rules:
-        if issubclass(type(iter), rule):
+        if isinstance(iter, rule):
             if rules[rule][0]:
                 return reciter_with_keys(iter, tab, spacenum, rules[rule][1:], rules)
             else:
