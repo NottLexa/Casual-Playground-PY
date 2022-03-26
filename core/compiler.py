@@ -33,15 +33,16 @@ def get(code: str) -> get_hinting:
     return ret
 
 class Cell:
-    def __init__(self, technical_values: dict, cell_code: dict, board: list, globals_object: dict):
+    def __init__(self, technical_values: dict, codeid: int, board: list, globals_object: list):
         self.techvars = {'X': 0,
                          'Y': 0}
         self.techvars.update(technical_values)
-        self.code = cell_code.copy()
+        self.codeid = codeid
         self.locals = {}
         self.board = board
         self.globals = globals_object
         self.orders = []
+        self.code = self.globals[0]['objdata'][self.globals[0]['idlist'][self.codeid]]
         if self.code['script']['create'] is not None:
             self.code['script']['create'](self)
     def step(self):

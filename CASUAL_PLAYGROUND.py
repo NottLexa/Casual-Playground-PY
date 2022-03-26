@@ -24,7 +24,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #16
+  Alexey Kozhanov                                                                     #17
                                                                                DVLP BUILD
 ''')
 
@@ -94,8 +94,11 @@ def load_mod(modfolder, author, official):
 loc = 'rus'
 current_instrument = {'type':None}
 
-idlist = []
-objdata = {}
+global_variables = [{'objdata':{},
+                     'idlist':[]},
+                    {}]
+idlist = global_variables[0]['idlist']
+objdata = global_variables[0]['objdata']
 fontsize = 16
 fonts = {}
 
@@ -160,9 +163,7 @@ print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 }))
 
 cell_fill_on_init = objdata['grass']
-cellbordersize = 0.5
-
-global_variables = {}
+cellbordersize = 0.125
 #endregion
 
 #region [ENTITY]
@@ -217,7 +218,7 @@ def FieldBoard_create(target):
     for y in range(target.board_height):
         target.board.append([])
         for x in range(target.board_width):
-            celldata = comp.Cell({'X': x, 'Y': y}, cell_fill_on_init, target.board, global_variables)
+            celldata = comp.Cell({'X': x, 'Y': y}, idlist.index('grass'), target.board, global_variables)
             target.board[-1].append(celldata)
 
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
@@ -226,6 +227,9 @@ def FieldBoard_create(target):
     target.timepertick = 1.0
 
 def FieldBoard_step(target):
+    tl_cell = target.board[0][0]
+    print(tl_cell.locals)
+
     target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
     target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
 
@@ -245,7 +249,8 @@ def FieldBoard_step(target):
             if 0 <= cx < maxcx and 0 <= cy < maxcy:
                 if (rx%target.viewscale < (target.viewscale-bordersize) and
                     ry%target.viewscale < (target.viewscale-bordersize)):
-                    target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, objdata[idlist[current_instrument['cell']]], target.board, global_variables)
+                    cellid = current_instrument['cell']
+                    target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, cellid, target.board, global_variables)
                     target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)

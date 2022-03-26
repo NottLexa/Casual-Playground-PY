@@ -8,10 +8,11 @@ from . import compiler_code_blocks as ccb
 MO = MATHOPERATORS = ['+-', '*/']
 SET_MO = set(''.join(MO))
 
-class OrderTypes:
-    SET_CELL = range(1)
-
-ot = OrderTypes
+class Order:
+    SET_CELL, = range(1)
+    def __init__(self, type, *args):
+        self.type = type
+        self.args = args
 
 def chapter_cell(code: str, startl: int):
     l = startl
@@ -155,15 +156,9 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
                 'c': 0, # curly
                 'q': 0, # quotemarks
                 't': False} # quotemarks type (False - ", True - ')
-    cond = lambda l: cond1(l) and cond2(l)
-    cond1 = lambda l: l < end
-    cond2 = lambda l: cond2a() and cond2b(l)
-    cond2a = lambda: brackets['r'] == brackets['s'] == brackets['c'] == brackets['q'] == 0
-    cond2b = lambda l: code[l] == '\n'
 
     l, write, concl, cur = split_args2(code, l)
-    if not correct_concl(concl):
-        return None, 0, concl, cur
+    if not correct_concl(concl): return None, 0, concl, cur
     block = definer(write)
     return block, l, CompilerConclusion(0), None
 
@@ -182,11 +177,9 @@ def definer(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor
 
 def definer_setvar(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
     w, concl, cur = value_determinant(parts[0:1])
-    if not correct_concl(concl):
-        return ccb.Value(ccb.Global.EMPTY), concl, cur
+    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
     r, concl, cur = value_determinant(parts[2:])
-    if not correct_concl(concl):
-        return ccb.Value(ccb.Global.EMPTY), concl, cur
+    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
     return ccb.Block(ccb.Global.SETVAR, w, r)
 
 def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
@@ -195,14 +188,26 @@ def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion,
         inp = []
         for part in codeparts:
             write, concl, cur = split_args3(part, *SET_MO)
-            if not correct_concl(concl):
-                return ccb.Value(ccb.Global.EMPTY), concl, cur
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
             inp.extend(write)
         return math_resolver(inp)
 
 def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if codepart[0] == '_': # localvar
         return ccb.Value(ccb.Global.LOCALVAR, codepart[1:]), CompilerConclusion(0), None
+    elif codepart[0] == ':': # function
+        l0, l1, w, concl, cur = cep.string_embedded_brackets(codepart, 1, '()')
+        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+        getargs, concl, cur = split_args3(codepart[l0+1:l1-1], ',')
+        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+        args = []
+        for v in getargs[::2]:
+            _, sv, concl, cur = split_args2(v, 0)
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            nv, concl, cur = value_determinant(sv)
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            args.append(nv)
+        return ccb.Value(ccb.Global.FUNC, codepart[1:l0], CoreFuncs, args), CompilerConclusion(0), None
     elif codepart.isdigit():
         return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), None
     elif codepart.replace('.', '', 1).isdigit():
@@ -210,8 +215,7 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
     elif codepart[0] in '"\'':
         st = cep.EOC_index[codepart[0]]
         l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
-        if not correct_concl(concl):
-            return ccb.Value(ccb.Global.EMPTY), concl, cur
+        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
         return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
     else:
         return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(205), None
@@ -228,11 +232,9 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
             try:
                 l = allparts.index(mos)
                 vd1, concl, cur = value_determinant(allparts[:l])
-                if not correct_concl(concl):
-                    return ccb.Value(ccb.Global.EMPTY), concl, cur
+                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
                 vd2, concl, cur = value_determinant(allparts[l+1:])
-                if not correct_concl(concl):
-                    return ccb.Value(ccb.Global.EMPTY), concl, cur
+                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
                 args = [vd1, vd2]
                 return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div'}[mos], CoreFuncs, args), CompilerConclusion(0), None
             except ValueError:
@@ -240,22 +242,21 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
 
 class CoreFuncs:
     @staticmethod
-    def add(data, *args):
-        return args[0].read(data) + args[1].read(data)
+    def add(data, a, b):
+        return a.read(data) + b.read(data)
     @staticmethod
-    def sub(data, *args):
-        return args[0].read(data) - args[1].read(data)
+    def sub(data, a, b):
+        return a.read(data) - b.read(data)
     @staticmethod
-    def mul(data, *args):
-        return args[0].read(data) * args[1].read(data)
+    def mul(data, a, b):
+        return a.read(data) * b.read(data)
     @staticmethod
-    def div(data, *args):
-        return args[0].read(data) / args[1].read(data)
-    @staticmethod
-    def setcell(data, *args):
-        data.orders.append(Order(ot.SET_CELL), args[0], args[1], args[2])
-
-class Order:
-    def __init__(self, type, *args):
-        self.type = type
-        self.args = args
+    def div(data, a, b):
+        return a.read(data) / b.read(data)
+    # @staticmethod
+    # def getcell(data, x, y):
+    #     cell = data.board[y][x]
+    #     return cell.code
+    # @staticmethod
+    # def setcell(data, x, y, cell):
+    #     data.orders.append(Order(Order.SET_CELL), x, y, cell)
