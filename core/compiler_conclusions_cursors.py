@@ -46,7 +46,7 @@ class CompilerConclusion:
     @staticmethod
     def get_description(code: int) -> str:
         group, errid = divmod(code, 100)
-        if group in CompilerConclusion.ids and errid in CompilerConclusion.ids[group]:
+        if group < len(CompilerConclusion.ids) and errid < len(CompilerConclusion.ids[group]):
             return CompilerConclusion.ids[group][errid]
         else:
             return 'Unknown Code'
