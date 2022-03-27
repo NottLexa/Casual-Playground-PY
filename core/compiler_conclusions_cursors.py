@@ -39,8 +39,14 @@ class CompilerConclusion:
             2: 'Syntax error: impossible usage of backslash in quote marks',
             3: 'Syntax error: unexpected symbol/expression',
             4: 'Syntax error: unclosed math operation',
-            5: 'Syntax error: unidentifiable value'
         }.values()),
+        # 3-- / Value error
+        list({
+            0: 'Value error: no specified reason',
+            1: 'Value error: unidentifiable value',
+            2: 'Value error: trying to write read-only variable',
+            3: 'Value error: trying to read non-existent variable',
+        }.values())
     ]
 
     @staticmethod

@@ -16,7 +16,9 @@ def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion,
         return math_resolver(inp)
 
 def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
-    if codepart[0] == '_': # localvar
+    if codepart[:2] == '__': # techvar (read-only)
+        return ccb.Value(ccb.Global.TECHVAR, codepart[2:]), CompilerConclusion(0), None
+    elif codepart[0] == '_': # localvar
         return ccb.Value(ccb.Global.LOCALVAR, codepart[1:]), CompilerConclusion(0), None
     elif codepart[0] == ':': # function
         l0, l1, w, concl, cur = cep.string_embedded_brackets(codepart, 1, '()')
@@ -41,7 +43,7 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
         if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
         return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
     else:
-        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(205), None
+        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
 
 def value_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if len(codeparts) == 1:

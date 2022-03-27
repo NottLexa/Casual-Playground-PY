@@ -25,7 +25,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #18
+  Alexey Kozhanov                                                                     #19
                                                                                DVLP BUILD
 ''')
 
@@ -245,7 +245,7 @@ def FieldBoard_create(target):
 
 def FieldBoard_step(target):
     #tl_cell = target.board[0][0]
-    #print(tl_cell.locals, tl_cell.orders)
+    #print(tl_cell.locals, tl_cell.tasks)
 
     target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
     target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
