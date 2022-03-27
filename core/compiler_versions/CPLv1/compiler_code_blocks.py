@@ -80,7 +80,7 @@ class Block(ccbt.Block):
                 writeto, readfrom = self.data
                 writeto.write(readfrom.read(localcell), localcell)
             case Global.RUNFUNC:
-                self.data[0](localcell)
+                self.data[0].read(localcell)
             case _:
                 pass
     def __str__(self):
@@ -157,7 +157,7 @@ class Value(ccbt.Value):
     def __str__(self):
         match self.type:
             case Global.FUNC:
-                ret = (f'Func {self.value}' if (self.source is None) else f'Func {self.source}.{self.value}') + f' [{len(self.args)}]'
+                ret = (f'Func {self.value}' if (self.source is None) else f'Func {self.source}.{self.value}') + f' [{self.args}]'
             case Global.LOCALVAR:
                 ret = f'Local {self.value}' if (self.source is None) else f'Local {self.source}.{self.value}'
             case Global.TECHVAR:

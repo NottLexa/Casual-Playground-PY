@@ -41,7 +41,7 @@ class Cell:
         self.locals = {}
         self.board = board
         self.globals = globals_object
-        self.orders = []
+        self.tasks = []
         self.code = self.globals[0]['objdata'][self.globals[0]['idlist'][self.codeid]]
         if self.code['script']['create'] is not None:
             self.code['script']['create'](self)

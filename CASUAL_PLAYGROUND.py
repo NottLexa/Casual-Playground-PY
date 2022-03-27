@@ -8,6 +8,7 @@ import math
 import core.nle as engine
 import core.compiler as comp
 import core.compiler_code_blocks_types as ccbt
+import core.compiler_task_types as ctt
 from core.compiler_conclusions_cursors import *
 from datetime import datetime
 
@@ -24,19 +25,21 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #17
+  Alexey Kozhanov                                                                     #18
                                                                                DVLP BUILD
 ''')
 
+pygame.init()
+vidinf = engine.get_screensize(engine.pygame_videoinfo())
+print(vidinf)
+WINDOW_WIDTH, WINDOW_HEIGHT = round(vidinf[0] * 3/4), round(vidinf[1] * 3/4)
 scale = 50
 WIDTH, HEIGHT = 16*scale, 9*scale
 WIDTH2, HEIGHT2 = WIDTH//2, HEIGHT//2
 
-screen = engine.Screen((WIDTH, HEIGHT), (WIDTH*2, HEIGHT*2), 0, True)
+screen = engine.Screen((WIDTH, HEIGHT), (WINDOW_WIDTH, WINDOW_HEIGHT), 0, True)
 clock = pygame.time.Clock()
 deltatime = 0
-
-pygame.init()
 #endregion
 
 #region [LOADING FUNCTIONS]
@@ -192,6 +195,20 @@ def FieldBoard_board_step(target):
         for x in range(target.board_width):
             target.board[y][x].step()
 
+def FieldBoard_board_tasks(target):
+    change_board = False
+    for y in range(target.board_height):
+        for x in range(target.board_width):
+            tasks = target.board[y][x].tasks
+            for tasktype, *args in tasks:
+                if tasktype == ctt.SET_CELL:
+                    _x, _y, _cellid = args
+                    target.board[_y][_x] = comp.Cell({'X': _x, 'Y': _y}, _cellid, target.board, global_variables)
+                    change_board = True
+            target.board[y][x].tasks.clear()
+    if change_board:
+        target.surfaces['board'] = FieldBoard_user_draw_board(target)
+
 def FieldBoard_create(target):
     target.board_width = 32
     target.board_height = 32
@@ -227,8 +244,8 @@ def FieldBoard_create(target):
     target.timepertick = 1.0
 
 def FieldBoard_step(target):
-    tl_cell = target.board[0][0]
-    print(tl_cell.locals)
+    #tl_cell = target.board[0][0]
+    #print(tl_cell.locals, tl_cell.orders)
 
     target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
     target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
@@ -258,6 +275,11 @@ def FieldBoard_step(target):
     target.time += deltatime
     if target.time > target.timepertick:
         FieldBoard_board_step(target)
+        # target.time = 0 # moved to FieldBoard_after_step
+
+def FieldBoard_step_after(target):
+    if target.time > target.timepertick:
+        FieldBoard_board_tasks(target)
         target.time = 0
 
 def FieldBoard_draw(target, surface: pygame.Surface):
@@ -372,7 +394,8 @@ def FieldBoard_mouse_released(target, mousepos, buttonid):
     if buttonid == 3:  # Use instrument
         target.keys['rmb'] = setkey
 
-EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step, event_draw=FieldBoard_draw,
+EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step,
+                              event_step_after=FieldBoard_step_after, event_draw=FieldBoard_draw,
                               event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released,
                               event_mouse_pressed=FieldBoard_mouse_pressed,
                               event_mouse_released=FieldBoard_mouse_released)
