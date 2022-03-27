@@ -2,7 +2,9 @@
 #
 # Hello world!
 
-from .compiler_value_determinants import *
+from .compiler_other_instruments import *
+from . import compiler_code_blocks as ccb
+from . import compiler_block_definers as cbd
 
 def chapter_cell(code: str, startl: int):
     l = startl
@@ -149,28 +151,5 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
 
     l, write, concl, cur = split_args2(code, l)
     if not correct_concl(concl): return None, 0, concl, cur
-    block = definer(write)
-    return block, l, CompilerConclusion(0), None
-
-def definer(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
-    if len(parts) == 1:
-        parts = parts[0]
-        if (ind := parts.find('=')) != -1: # SETVAR
-            return definer_setvar([parts[:ind], parts[ind:ind+1], parts[ind+1:]])
-        elif parts[0] == ':': # RUNFUNC
-            func, concl, cur = simple_determinant(parts)
-            return ccb.Block(ccb.Global.RUNFUNC, func)
-        else:
-            return ccb.Block(ccb.Global.UNKNOWNBLOCK)
-    else:
-        if '=' == parts[1]: # SETVAR
-            return definer_setvar(parts)
-        else:
-            return ccb.Block(ccb.Global.UNKNOWNBLOCK)
-
-def definer_setvar(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
-    w, concl, cur = value_determinant(parts[0:1])
-    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-    r, concl, cur = value_determinant(parts[2:])
-    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-    return ccb.Block(ccb.Global.SETVAR, w, r)
+    block, concl, cur = cbd.definer(write)
+    return block, l, concl, cur

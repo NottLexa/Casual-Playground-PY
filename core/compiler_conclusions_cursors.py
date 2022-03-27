@@ -39,6 +39,7 @@ class CompilerConclusion:
             2: 'Syntax error: impossible usage of backslash in quote marks',
             3: 'Syntax error: unexpected symbol/expression',
             4: 'Syntax error: unclosed math operation',
+            5: 'Syntax error: undefinable code line'
         }.values()),
         # 3-- / Value error
         list({

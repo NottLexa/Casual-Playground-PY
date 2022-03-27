@@ -1,6 +1,7 @@
 from .compiler_core_functions import *
 from .compiler_other_instruments import *
 from . import compiler_code_blocks as ccb
+from ... import compiler_string_constants as csc
 
 MO = MATHOPERATORS = ['+-', '*/']
 SET_MO = set(''.join(MO))
@@ -16,34 +17,40 @@ def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion,
         return math_resolver(inp)
 
 def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
-    if codepart[:2] == '__': # techvar (read-only)
-        return ccb.Value(ccb.Global.TECHVAR, codepart[2:]), CompilerConclusion(0), None
-    elif codepart[0] == '_': # localvar
-        return ccb.Value(ccb.Global.LOCALVAR, codepart[1:]), CompilerConclusion(0), None
-    elif codepart[0] == ':': # function
-        l0, l1, w, concl, cur = cep.string_embedded_brackets(codepart, 1, '()')
-        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-        getargs, concl, cur = split_args3(codepart[l0+1:l1-1], ',')
-        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-        args = []
-        for v in getargs[::2]:
-            _, sv, concl, cur = split_args2(v, 0)
-            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-            nv, concl, cur = value_determinant(sv)
-            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-            args.append(nv)
-        return ccb.Value(ccb.Global.FUNC, codepart[1:l0], CoreFuncs, args), CompilerConclusion(0), None
-    elif codepart.isdigit():
+    s_codepart = set(codepart)
+    numeric = s_codepart.issubset(csc.s_digdot)
+    if numeric and ('.' not in s_codepart):
         return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), None
-    elif codepart.replace('.', '', 1).isdigit():
+    elif numeric and (codepart.count('.') == 1):
         return ccb.Value(ccb.Global.FIXEDVAR, float(codepart)), CompilerConclusion(0), None
-    elif codepart[0] in '"\'':
-        st = cep.EOC_index[codepart[0]]
-        l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
-        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-        return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
     else:
-        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
+        namable = lambda x: (set(x).issubset(csc.s_nam)) and (x[0] not in csc.s_dig)
+        name1 = codepart[1:]
+        name2 = codepart[2:]
+        if codepart[:2] == '__' and namable(name2): # techvar (read-only)
+            return ccb.Value(ccb.Global.TECHVAR, name2), CompilerConclusion(0), None
+        elif codepart[0] == '_' and namable(name1): # localvar
+            return ccb.Value(ccb.Global.LOCALVAR, name1), CompilerConclusion(0), None
+        elif codepart[0] == ':': # function
+            l0, l1, w, concl, cur = cep.string_embedded_brackets(codepart, 1, '()')
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            getargs, concl, cur = split_args3(codepart[l0+1:l1-1], ',')
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            args = []
+            for v in getargs[::2]:
+                _, sv, concl, cur = split_args2(v, 0)
+                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                nv, concl, cur = value_determinant(sv)
+                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                args.append(nv)
+            return ccb.Value(ccb.Global.FUNC, codepart[1:l0], CoreFuncs, args), CompilerConclusion(0), None
+        elif codepart[0] in '"\'':
+            st = cep.EOC_index[codepart[0]]
+            l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
+        else:
+            return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
 
 def value_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if len(codeparts) == 1:
