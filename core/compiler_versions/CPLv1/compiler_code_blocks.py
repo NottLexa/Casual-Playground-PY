@@ -2,7 +2,7 @@ import core.compiler_code_blocks_types as ccbt
 
 class Global:
     UNKNOWNBLOCK, SETVAR, RUNFUNC = range(3)
-    FUNC, LOCALVAR, TECHVAR, GLOBALVAR, FIXEDVAR, EMPTY = range(6)
+    FUNC, LOCALVAR, TECHVAR, GLOBALVAR, GLOBALTECHVAR, FIXEDVAR, EMPTY = range(7)
 
     @staticmethod
     def back_funcs(value_to_name):
@@ -121,7 +121,9 @@ class Value(ccbt.Value):
             case Global.TECHVAR:
                 return sourcedata.techvars[self.value]
             case Global.GLOBALVAR:
-                return sourcedata.globals[self.value]
+                return sourcedata.globals[1][self.value]
+            case Global.GLOBALTECHVAR:
+                return sourcedata.globals[0][self.value]
             case Global.FIXEDVAR:
                 return self.value
     def write(self, newvalue, localcell = None):
@@ -135,7 +137,9 @@ class Value(ccbt.Value):
             case Global.TECHVAR:
                 sourcedata.techvars[self.value] = newvalue
             case Global.GLOBALVAR:
-                sourcedata.globals[self.value] = newvalue
+                sourcedata.globals[1][self.value] = newvalue
+            case Global.GLOBALTECHVAR:
+                sourcedata.globals[0][self.value] = newvalue
     def __repr__(self):
         match self.type:
             case Global.FUNC:
