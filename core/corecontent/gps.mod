@@ -8,9 +8,5 @@ LOCALIZATION
     rus "GPS" "Записывает свои координаты."
 
 SCRIPT CREATE
-    _x = 0
-    _y = 0
-
-SCRIPT STEP
     _x = __X
     _y = __Y
