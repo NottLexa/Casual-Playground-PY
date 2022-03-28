@@ -24,5 +24,6 @@ By their meaning you can understand what specific change did.
 |   `+`    | New feature        |
 |   `-`    | Removed            |
 |   `>`    | Edited/Renamed     |
+|   `>>`   | Moved              |
 |   `!`    | Important change   |
 |_No mark_ | Unspecified change |

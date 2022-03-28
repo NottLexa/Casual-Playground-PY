@@ -74,8 +74,7 @@ def chapter_script(code: str, startl: int, version: int):
             l += 1
         l += 1
         l, ret_script[script_type], concl, cur = read_code(code, l, tab=1, version=version)
-        if concl != CompilerConclusion(0):
-            return 0, {}, concl, cur
+        if concl != CompilerConclusion(0): return 0, {}, concl, cur
     return l, ret_script, CompilerConclusion(0), None
 
 def get(code: str, start: int, end: int = None) -> get_hinting:
@@ -128,15 +127,15 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
         if spaces < tab*4: # not in tab
             break
         elif spaces > tab*4: # upper tab
-            l, upper_tab, concl, cur = read_code(code, l-spaces, tab+1, version)
-            if concl != CompilerConclusion(0):
-                return 0, ccb.BlockSequence(), concl, cur
-            if type(code_sequence[-1]) is ccb.While:
-                code_sequence[-1].block = upper_tab
+            break
+            # l, upper_tab, concl, cur = read_code(code, l-spaces, tab+1, version)
+            # if concl != CompilerConclusion(0):
+            #     return 0, ccb.BlockSequence(), concl, cur
+            # if type(code_sequence[-1]) is ccb.While:
+            #     code_sequence[-1].block = upper_tab
         else:
             block, l, concl, cur = read_line(code, l-spaces, version, tab)
-            if concl != CompilerConclusion(0):
-                return 0, ccb.BlockSequence(), concl, cur
+            if not correct_concl(concl): return 0, ccb.BlockSequence(), concl, cur
             code_sequence.add(block)
     return l, code_sequence, CompilerConclusion(0), None
 
@@ -150,6 +149,6 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
                 't': False} # quotemarks type (False - ", True - ')
 
     l, write, concl, cur = split_args2(code, l)
-    if not correct_concl(concl): return None, 0, concl, cur
+    if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
     block, concl, cur = cbd.definer(write)
     return block, l, concl, cur

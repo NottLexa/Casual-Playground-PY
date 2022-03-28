@@ -1,8 +1,18 @@
-###
-### NLE1 (NotLexaEngine 1) for Python 3.10+, Pygame 2.1+
-### Version: 1.0.0
-### License: CC BY-NC-SA 4.0
-###
+'''
+NLE1 (NotLexaEngine 1) for Python 3.10+, Pygame 2.1+
+Version: 1.0.0
+License: CC BY-NC-SA 4.0
+
+пожалуйста не спрашивайте почему я использовал этот скрипт а не напрямую pygame для Casual Playground.
+это мой старый скрипт который я создал давно чтобы скопировать структуру проектов в GameMaker Studio 2.
+мне с этим просто проще работать. в нем кстати есть ещё несколько полезных математических функций и класс Screen
+который упрощает работу с pygame.display.
+
+pls don't ask why I used this script and not pygame directly for Casual Playground.
+it's my old script that I created long ago to copy GameMaker Studio 2 projects' structure.
+it's just easier for me to work with. It also contains few useful math features and Screen class that simplifies
+work with pygame.display.
+'''
 
 import os
 import typing

@@ -47,12 +47,23 @@ class CompilerConclusion:
             1: 'Value error: unidentifiable value',
             2: 'Value error: trying to write read-only variable',
             3: 'Value error: trying to read non-existent variable',
-        }.values())
+        }.values()),
+        # 4-- / Runtime error
+        list({
+            0: 'Runtime error: no specified reason',
+        }.values()),
     ]
 
     @staticmethod
     def get_description(code: int) -> str:
         group, errid = divmod(code, 100)
+        if group < len(CompilerConclusion.ids) and errid < len(CompilerConclusion.ids[group]):
+            return CompilerConclusion.ids[group][errid]
+        else:
+            return 'Unknown Code'
+
+    def description(self) -> str:
+        group, errid = divmod(self.code, 100)
         if group < len(CompilerConclusion.ids) and errid < len(CompilerConclusion.ids[group]):
             return CompilerConclusion.ids[group][errid]
         else:

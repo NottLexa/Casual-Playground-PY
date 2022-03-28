@@ -25,7 +25,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #19
+  Alexey Kozhanov                                                                     #20
                                                                                DVLP BUILD
 ''')
 
@@ -82,8 +82,12 @@ def load_mod(modfolder, author, official):
                 with open(path, 'r', encoding='utf8') as f:
                     moddata, concl, cur = comp.get(f.read())
                     if not correct_concl(concl):
-                        time = f'[{timeformat(datetime.now(), 1)}]'
-                        print(f'{time} CasualPlayground Compiler encountered an error!')
+                        #time = f'[{timeformat(datetime.now(), 1)}]'
+                        logger.append([LoggerClass.ERROR,
+                                       datetime.now(),
+                                       f'Couldn\'t load {path}',
+                                       f'CasualPlayground Compiler encountered an error: {concl.code}',
+                                       concl.description()])
                         #print(f'{time} ')
                         continue
                 modname = m[:-4]
@@ -104,6 +108,13 @@ idlist = global_variables[0]['idlist']
 objdata = global_variables[0]['objdata']
 fontsize = 16
 fonts = {}
+
+class LoggerClass:
+    types = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+    DEBUG, INFO, WARNING, ERROR, CRITICAL = range(len(types))
+
+logger = []
+logger_i = 0
 
 fullgamepath = os.getcwd()
 
@@ -170,6 +181,22 @@ cellbordersize = 0.125
 #endregion
 
 #region [ENTITY]
+#region [GLOBAL CONSOLE]
+def GlobalConsole_step(target):
+    global logger, logger_i
+    while logger_i < len(logger):
+        log = logger[logger_i]
+        type_string = LoggerClass.types[log[0]]
+        time_string = timeformat(log[1], 2)
+        prefix = f'[{type_string} {time_string}]' + ' '
+        prefix_l = len(prefix)
+        print(prefix + log[2])
+        for line in log[3:]:
+            print(' '*prefix_l + line)
+        logger_i += 1
+
+EntGlobalConsole = engine.Entity(event_step=GlobalConsole_step)
+#endregion
 #region [FIELD BOARD]
 def FieldBoard_user_draw_board(target):
     bw, bh = target.board_width, target.board_height
@@ -475,15 +502,16 @@ EntFieldSUI = engine.Entity(event_create=FieldSUI_create, event_step=FieldSUI_st
 #endregion
 
 #region [INSTANCE]
-fieldboard = EntFieldBoard.instance()
+globalconsole = EntGlobalConsole.instance()
 
+fieldboard = EntFieldBoard.instance()
 fieldsui = EntFieldSUI.instance()
 #endregion
 
 #region [ROOM]
-room_mainmenu = engine.Room()
+room_mainmenu = engine.Room([EntGlobalConsole])
 
-room_field = engine.Room([EntFieldBoard, EntFieldSUI])
+room_field = engine.Room([EntGlobalConsole, EntFieldBoard, EntFieldSUI])
 
 engine.rooms.change_current_room(room_field)
 #endregion

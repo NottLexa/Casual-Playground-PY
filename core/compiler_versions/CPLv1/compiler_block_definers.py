@@ -6,9 +6,7 @@ def definer(parts: list[str]) -> (ccb.Block, CompilerConclusion, (CompilerCursor
         if (ind := parts.find('=')) != -1: # SETVAR
             return definer_setvar([parts[:ind], parts[ind:ind+1], parts[ind+1:]])
         elif parts[0] == ':': # RUNFUNC
-            func, concl, cur = simple_determinant(parts)
-            if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), concl, cur
-            return ccb.Block(ccb.Global.RUNFUNC, func), CompilerConclusion(0), None
+            return definer_runfunc(parts)
         else:
             return ccb.Block(ccb.Global.UNKNOWNBLOCK), CompilerConclusion(205), None
     else:
@@ -23,3 +21,8 @@ def definer_setvar(parts: list[str]) -> (ccb.Block, CompilerConclusion, (Compile
     r, concl, cur = value_determinant(parts[2:])
     if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), concl, cur
     return ccb.Block(ccb.Global.SETVAR, w, r), CompilerConclusion(0), None
+
+def definer_runfunc(string: str) -> (ccb.Block, CompilerConclusion, (CompilerCursor | None)):
+    func, concl, cur = simple_determinant(string)
+    if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), concl, cur
+    return ccb.Block(ccb.Global.RUNFUNC, func), CompilerConclusion(0), None
