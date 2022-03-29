@@ -6,6 +6,9 @@ from .compiler_other_instruments import *
 from . import compiler_code_blocks as ccb
 from . import compiler_block_definers as cbd
 
+class LineType:
+    ADDNEW, ADDCONDBLOCK, ADDFALSEBLOCK = range(3)
+
 def chapter_cell(code: str, startl: int):
     l = startl
     ret = {}
@@ -129,9 +132,26 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
         elif spaces > tab*4: # upper tab
             return 0, ccb.BlockSequence(), CompilerConclusion(206), CompilerCursor(code, l)
         else:
-            block, l, concl, cur = read_line(code, l-spaces, version, tab)
+            linetype, block, l, concl, cur = read_line(code, l-spaces, version, tab)
             if not correct_concl(concl): return 0, ccb.BlockSequence(), concl, cur
-            code_sequence.add(block)
+            match linetype:
+                case LineType.ADDNEW:
+                    code_sequence.add(block)
+                case LineType.ADDCONDBLOCK:
+                    if isinstance(code_sequence[-1], ccb.Gate):
+                        code_sequence[-1].cb.append(block)
+                    else:
+                        return 0, ccb.BlockSequence(), CompilerConclusion(207), None
+                case LineType.ADDFALSEBLOCK:
+                    if isinstance(code_sequence[-1], ccb.Gate):
+                        if code_sequence[-1].fb is None:
+                            code_sequence[-1].fb = block
+                        else:
+                            return 0, ccb.BlockSequence(), CompilerConclusion(209), None
+                    else:
+                        return 0, ccb.BlockSequence(), CompilerConclusion(208), None
+                case _:
+                    code_sequence.add(block)
     return l-spaces, code_sequence, CompilerConclusion(0), None
 
 def read_line(code: str, startl: int, version: int, tab: int = 0):
@@ -139,12 +159,20 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
     l = startl
 
     l, write, concl, cur = split_args2(code, l)
-    if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
-    if write[0] == 'IF': # IF
+    if not correct_concl(concl): return LineType.ADDNEW, ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+    if write[0] == 'IF':
         value, concl, cur = cbd.value_determinant(write[1:])
         if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
         l, seq, concl, cur = read_code(code, l, version, tab+1)
-        return ccb.Gate([[value, seq]]), l, concl, cur
+        return LineType.ADDNEW, ccb.Gate([[value, seq]]), l, concl, cur
+    elif write[0] == 'ELSEIF':
+        value, concl, cur = cbd.value_determinant(write[1:])
+        if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+        l, seq, concl, cur = read_code(code, l, version, tab+1)
+        return LineType.ADDCONDBLOCK, [value, seq], l, concl, cur
+    elif write[0] == 'ELSE':
+        l, seq, concl, cur = read_code(code, l, version, tab+1)
+        return LineType.ADDFALSEBLOCK, seq, l, concl, cur
     else:
         block, concl, cur = cbd.definer(write)
-        return block, l, concl, cur
+        return LineType.ADDNEW, block, l, concl, cur

@@ -2,39 +2,55 @@ from ... import compiler_task_types as ctt
 
 class CoreFuncs:
     @staticmethod
-    def add(data, a, b):
-        return a.read(data) + b.read(data)
+    def add(cell, a, b):
+        '''Returns A + B.'''
+        return a.read(cell) + b.read(cell)
     @staticmethod
-    def sub(data, a, b):
-        return a.read(data) - b.read(data)
+    def sub(cell, a, b):
+        '''Returns A - B.'''
+        return a.read(cell) - b.read(cell)
     @staticmethod
-    def mul(data, a, b):
-        return a.read(data) * b.read(data)
+    def mul(cell, a, b):
+        '''Returns A * B.'''
+        return a.read(cell) * b.read(cell)
     @staticmethod
-    def div(data, a, b):
-        return a.read(data) / b.read(data)
+    def div(cell, a, b):
+        '''Returns A / B.'''
+        return a.read(cell) / b.read(cell)
     @staticmethod
-    def getcell(data, x, y):
-        cell = data.board[y.read(data)][x.read(data)]
-        return cell.codeid
+    def getcell(cell, x, y):
+        '''Gets CellID of cell on board by coordinates X, Y.'''
+        cell = cell.board[y.read(cell)][x.read(cell)]
+        return cell.cellid
     @staticmethod
-    def setcell(data, x, y, codeid):
-        data.tasks.append([ctt.SET_CELL, x.read(data), y.read(data), codeid.read(data)])
+    def setcell(cell, x, y, cellid):
+        '''Sends an order to change cell on board with coordinates X, Y to cell with given CellID.'''
+        cell.tasks.append([ctt.SET_CELL, x.read(cell), y.read(cell), cellid.read(cell)])
     @staticmethod
-    def eq(data, a, b):
-        return a.read(data) == b.read(data)
+    def eq(cell, a, b):
+        '''Returns True if A equals B, False otherwise.'''
+        return a.read(cell) == b.read(cell)
     @staticmethod
-    def ne(data, a, b):
-        return a.read(data) != b.read(data)
+    def ne(cell, a, b):
+        '''Returns True if A doesn't equals B, False otherwise.'''
+        return a.read(cell) != b.read(cell)
     @staticmethod
-    def ge(data, a, b):
-        return a.read(data) >= b.read(data)
+    def ge(cell, a, b):
+        '''Returns True if A greater/equals B, False otherwise.'''
+        return a.read(cell) >= b.read(cell)
     @staticmethod
-    def gt(data, a, b):
-        return a.read(data) > b.read(data)
+    def gt(cell, a, b):
+        '''Returns True if A greater than B, False otherwise.'''
+        return a.read(cell) > b.read(cell)
     @staticmethod
-    def le(data, a, b):
-        return a.read(data) <= b.read(data)
+    def le(cell, a, b):
+        '''Returns True if A less/equals B, False otherwise.'''
+        return a.read(cell) <= b.read(cell)
     @staticmethod
-    def lt(data, a, b):
-        return a.read(data) < b.read(data)
+    def lt(cell, a, b):
+        '''Returns True if A less than B, False otherwise.'''
+        return a.read(cell) < b.read(cell)
+    @staticmethod
+    def reply(cell, string):
+        '''Sends a text reply to console logger.'''
+        cell.reply(0, string.read(cell))

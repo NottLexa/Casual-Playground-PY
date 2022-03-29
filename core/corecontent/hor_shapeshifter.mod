@@ -11,5 +11,5 @@ SCRIPT STEP
     IF (BOARDWIDTH > 1)
         IF (__X < BOARDWIDTH-1)
             :setcell(__X, __Y, :getcell(__X+1, __Y))
-        IF (__X >= BOARDWIDTH-1)
+        ELSE
             :setcell(__X, __Y, :getcell(__X-1, __Y))

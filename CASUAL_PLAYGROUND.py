@@ -7,6 +7,7 @@ import math
 #from core import compiler as cpc
 import core.nle as engine
 import core.compiler as comp
+from core.compiler import LoggerClass
 import core.compiler_code_blocks_types as ccbt
 import core.compiler_task_types as ctt
 from core.compiler_conclusions_cursors import *
@@ -25,7 +26,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #22
+  Alexey Kozhanov                                                                     #23
                                                                                DVLP BUILD
 ''')
 
@@ -110,10 +111,12 @@ current_instrument = {'type':None}
 global_variables = [{'objdata':{},
                      'idlist':[],
                      'board_width':10,
-                     'board_height':10,},
+                     'board_height':10,
+                     'logger':[]},
                     {}]
 idlist = global_variables[0]['idlist']
 objdata = global_variables[0]['objdata']
+logger = global_variables[0]['logger']
 fontsize = scale*2
 fontsize_bigger  = 32*fontsize/scale
 fontsize_big     = 24*fontsize/scale
@@ -121,13 +124,6 @@ fontsize_default = 16*fontsize/scale
 fontsize_small   = 12*fontsize/scale
 fontsize_smaller = 8*fontsize/scale
 fonts = {}
-
-class LoggerClass:
-    types = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-    DEBUG, INFO, WARNING, ERROR, CRITICAL = range(len(types))
-
-logger = []
-logger_i = 0
 
 fullgamepath = os.getcwd()
 
@@ -207,10 +203,13 @@ cellbordersize = 0.125
 
 #region [ENTITY]
 #region [GLOBAL CONSOLE]
+def GlobalConsole_create(target):
+    target.logger_i = 0
+
 def GlobalConsole_step(target):
-    global logger, logger_i
-    while logger_i < len(logger):
-        log = logger[logger_i]
+    global logger
+    while target.logger_i < len(logger):
+        log = logger[target.logger_i]
         type_string = LoggerClass.types[log[0]]
         time_string = timeformat(log[1], 1)
         prefix = f'[{type_string} {time_string}]' + ' '
@@ -218,13 +217,14 @@ def GlobalConsole_step(target):
         print(prefix + log[2])
         for line in log[3:]:
             print(' '*prefix_l + line)
-        logger_i += 1
+        target.logger_i += 1
 
 def GlobalConsole_draw_after(target, surface: pygame.Surface):
     txt = render_font('default', fontsize_default, f'{round(1/deltatime) if deltatime != 0 else 0} FPS', False, 'white')
     surface.blit(txt, (surface.get_width()-txt.get_width()-8, 8))
 
-EntGlobalConsole = engine.Entity(event_step=GlobalConsole_step, event_draw_after=GlobalConsole_draw_after)
+EntGlobalConsole = engine.Entity(event_create=GlobalConsole_create, event_step=GlobalConsole_step,
+                                 event_draw_after=GlobalConsole_draw_after)
 #endregion
 #region [FIELD BOARD]
 def FieldBoard_user_draw_board(target):
@@ -327,7 +327,8 @@ def FieldBoard_step(target):
                 if (rx%target.viewscale < (target.viewscale-bordersize) and
                     ry%target.viewscale < (target.viewscale-bordersize)):
                     cellid = current_instrument['cell']
-                    target.board[int(cy)][int(cx)] = comp.Cell({'X':int(cx), 'Y':int(cy)}, cellid, target.board, global_variables)
+                    target.board[int(cy)][int(cx)] = comp.Cell({'X': int(cx), 'Y': int(cy)}, cellid, target.board,
+                                                               global_variables)
                     target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)

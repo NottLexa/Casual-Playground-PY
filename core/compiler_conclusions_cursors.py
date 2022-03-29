@@ -41,6 +41,9 @@ class CompilerConclusion:
             4: 'Syntax error: unclosed math operation',
             5: 'Syntax error: undefinable code line',
             6: 'Syntax error: encountered higher tab where it mustn\'t be',
+            7: 'Syntax error: unexpected ELSEIF statement (maybe you put something between IF and ELSEIF?)',
+            8: 'Syntax error: unexpected ELSE statement (maybe you put something between IF and ELSE?)',
+            9: 'Syntax error: unexpected ELSE statement (maybe you put ELSE twice?)',
         }.values()),
         # 3-- / Value error
         list({

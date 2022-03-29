@@ -57,7 +57,7 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
             st = cep.EOC_index[codepart[0]]
             l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
             if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-            return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
+            return ccb.Value(ccb.Global.FIXEDVAR, write), CompilerConclusion(0), None
         elif codepart[0] in cep.SET_EOC:
             st = cep.EOC_index[codepart[0]]
             _, _, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
