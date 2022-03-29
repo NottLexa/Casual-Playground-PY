@@ -127,12 +127,7 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
         if spaces < tab*4: # not in tab
             break
         elif spaces > tab*4: # upper tab
-            break
-            # l, upper_tab, concl, cur = read_code(code, l-spaces, tab+1, version)
-            # if concl != CompilerConclusion(0):
-            #     return 0, ccb.BlockSequence(), concl, cur
-            # if type(code_sequence[-1]) is ccb.While:
-            #     code_sequence[-1].block = upper_tab
+            return 0, ccb.BlockSequence(), CompilerConclusion(206), CompilerCursor(code, l)
         else:
             block, l, concl, cur = read_line(code, l-spaces, version, tab)
             if not correct_concl(concl): return 0, ccb.BlockSequence(), concl, cur
@@ -142,13 +137,14 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
 def read_line(code: str, startl: int, version: int, tab: int = 0):
     end = len(code)
     l = startl
-    brackets = {'r': 0, # round
-                's': 0, # square
-                'c': 0, # curly
-                'q': 0, # quotemarks
-                't': False} # quotemarks type (False - ", True - ')
 
     l, write, concl, cur = split_args2(code, l)
     if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
-    block, concl, cur = cbd.definer(write)
-    return block, l, concl, cur
+    if write[0] == 'IF': # IF
+        value, concl, cur = cbd.value_determinant(write[1:])
+        if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+        l, seq, concl, cur = read_code(code, l, version, tab+1)
+        return ccb.Gate([[value, seq]]), l, concl, cur
+    else:
+        block, concl, cur = cbd.definer(write)
+        return block, l, concl, cur
