@@ -25,7 +25,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #21
+  Alexey Kozhanov                                                                     #22
                                                                                DVLP BUILD
 ''')
 
@@ -33,7 +33,7 @@ pygame.init()
 vidinf = engine.get_screensize(engine.pygame_videoinfo())
 print(vidinf)
 WINDOW_WIDTH, WINDOW_HEIGHT = round(vidinf[0] * 3/4), round(vidinf[1] * 3/4)
-scale = 50
+scale = 100
 WIDTH, HEIGHT = 16*scale, 9*scale
 WIDTH2, HEIGHT2 = WIDTH//2, HEIGHT//2
 
@@ -58,6 +58,12 @@ def timeformat(dt: datetime, type: int):
             return time
         case 4:
             return time + ms
+
+def cut_string(string: str, upto: int):
+    if len(string) <= upto:
+        return string
+    else:
+        return string[:upto-3] + '...'
 
 def load_fonts(fontsfolder):
     fontsdict = {}
@@ -108,7 +114,12 @@ global_variables = [{'objdata':{},
                     {}]
 idlist = global_variables[0]['idlist']
 objdata = global_variables[0]['objdata']
-fontsize = 16
+fontsize = scale*2
+fontsize_bigger  = 32*fontsize/scale
+fontsize_big     = 24*fontsize/scale
+fontsize_default = 16*fontsize/scale
+fontsize_small   = 12*fontsize/scale
+fontsize_smaller = 8*fontsize/scale
 fonts = {}
 
 class LoggerClass:
@@ -123,11 +134,22 @@ fullgamepath = os.getcwd()
 font_debug = pygame.font.Font(None, fontsize)
 fontsfolder = ntpath.join(fullgamepath, 'data', 'fonts')
 fonts = load_fonts(fontsfolder)
-def get_font(font):
+def get_font(font) -> pygame.font.Font:
     if font in fonts:
         return fonts[font]
     else:
         return font_debug
+
+def render_font(font: pygame.font.Font | str, size: int,
+                text: str | bytes, antialias: bool, color, background = None) -> pygame.Surface:
+    if isinstance(font, str):
+        font = get_font(font)
+    ret = font.render(text, antialias, color, background)
+    ratio = size/fontsize
+    if antialias:
+        return pygame.transform.smoothscale(ret, (ret.get_width()*ratio, ret.get_height()*ratio))
+    else:
+        return pygame.transform.scale(ret, (ret.get_width()*ratio, ret.get_height()*ratio))
 
 print(fonts)
 
@@ -176,6 +198,7 @@ print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 list: (False, '[', ']'),
                                                 ccbt.BlockSequence: (False, '<BlockSeq', '>'),
                                                 ccbt.Block: (False, '<Block', '>'),
+                                                ccbt.Gate: (False, '<Gate', '>'),
                                                 }))
 
 cell_fill_on_init = objdata['grass']
@@ -189,7 +212,7 @@ def GlobalConsole_step(target):
     while logger_i < len(logger):
         log = logger[logger_i]
         type_string = LoggerClass.types[log[0]]
-        time_string = timeformat(log[1], 2)
+        time_string = timeformat(log[1], 1)
         prefix = f'[{type_string} {time_string}]' + ' '
         prefix_l = len(prefix)
         print(prefix + log[2])
@@ -197,7 +220,11 @@ def GlobalConsole_step(target):
             print(' '*prefix_l + line)
         logger_i += 1
 
-EntGlobalConsole = engine.Entity(event_step=GlobalConsole_step)
+def GlobalConsole_draw_after(target, surface: pygame.Surface):
+    txt = render_font('default', fontsize_default, f'{round(1/deltatime) if deltatime != 0 else 0} FPS', False, 'white')
+    surface.blit(txt, (surface.get_width()-txt.get_width()-8, 8))
+
+EntGlobalConsole = engine.Entity(event_step=GlobalConsole_step, event_draw_after=GlobalConsole_draw_after)
 #endregion
 #region [FIELD BOARD]
 def FieldBoard_user_draw_board(target):
@@ -357,12 +384,12 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         else:
             pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, WIDTH, bordersize))
 
-    txt = get_font('default').render(f'Speed: {2**target.cameraspeed}', False, 'white')
+    txt = render_font('default', fontsize_default, f'Speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
 
     if current_instrument['type'] == 'pencil':
-        txt = get_font('default').render(f'Pencil: {idlist[current_instrument["cell"]]}', False, 'white')
+        txt = render_font('default', fontsize_default, f'Pencil: {idlist[current_instrument["cell"]]}', False, 'white')
 
         surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                            surface.get_height() - txt.get_height() - 2 - fontsize-2))
@@ -438,7 +465,10 @@ def FieldSUI_create(target):
     target.show_step = 0.0
     target.show_menu = False
     target.show_all = True
-    target.cellmenu_width = 256
+    target.cellmenu_width = 512*scale/100
+    target.window_spacing = 8*scale/100
+    target.display_scale = 80*scale/100
+    target.element_border = target.display_scale/4
 
 def FieldSUI_step(target):
     target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
@@ -450,26 +480,30 @@ def FieldSUI_step(target):
 
 def FieldSUI_draw(target, surface: pygame.Surface):
     if target.show_all:
+        ds = target.display_scale
+        eb = target.element_border
+        ws = target.window_spacing
 
         measure = int(target.cellmenu_width*1.5)
         phase_offset = int(measure*target.show_step)-measure
 
         alphabg = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        pygame.draw.rect(alphabg, 'gray10', (4+phase_offset, 4, target.cellmenu_width, surface.get_height() - 8), 0, 5)
-        pygame.draw.rect(alphabg, 'gray50', (4+phase_offset, 4, target.cellmenu_width, surface.get_height() - 8), 1, 5)
+        pygame.draw.rect(alphabg, 'gray10', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 0, 5)
+        pygame.draw.rect(alphabg, 'gray50', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 1, 5)
 
         alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
 
         surface.blit(alphabg, (0, 0))
-
-        inoneline = (target.cellmenu_width-4)//(32+8)
+        inoneline = (target.cellmenu_width-ws)//(ds+eb)
         ci = -1
         for o in idlist:
             obj = objdata[o]
             if obj['type'] == 'CELL':
                 ci += 1
-                cx, cy = 4+4+(32+8)*(ci%inoneline), 4+4+(32+8)*(ci//inoneline)
-                pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, 32, 32))
+                cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
+                pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, ds, ds))
+                txt = render_font('default', fontsize_smaller, cut_string(obj['name'], 9), True, 'white')
+                surface.blit(txt, (cx+(ds/2)+phase_offset-(txt.get_width()//2), cy+ds+(eb/2)))
 
 def FieldSUI_kb_pressed(target, key):
     if key == pygame.K_TAB:
@@ -483,22 +517,19 @@ def FieldSUI_kb_released(target, key):
 
 def FieldSUI_mouse_pressed(target, mousepos, buttonid):
     if target.show_all:
+        ds = target.display_scale
+        eb = target.element_border
+        ws = target.window_spacing
         global current_instrument
         if buttonid == 1:
             phase_offset = int(200 * target.show_step) - 200
-            inoneline = (target.cellmenu_width - 4) // (32 + 8)
+            inoneline = (target.cellmenu_width-ws)//(ds+eb)
             mx, my = mousepos
-            mx -= 4+4+phase_offset
-            my -= 4+4
-            cx = mx//(32+8)
-            cy = my//(32+8)
-            maxcx = min(len(idlist)-1, (len(idlist)-1)%inoneline)
-            maxcy = math.ceil((len(idlist)-1)/inoneline)
-
-            if 0 <= cx <= maxcx and 0 <= cy <= maxcy:
-                if (mx%(32+8)) < 16 and (my%(32+8)) < 32:
-                    cellid = int(cy*inoneline+cx)
-                    current_instrument = {'type':'pencil', 'cell':cellid}
+            detectwidth, detectheight = ds+eb, ds+fontsize_smaller+(1.5*eb)
+            ci = (mx-eb)//detectwidth + ((my-eb)//detectheight)*inoneline
+            cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
+            if (cx <= mx <= cx+detectwidth-eb) and (cy <= my <= cy+detectheight-eb):
+                current_instrument = {'type': 'pencil', 'cell': int(ci)}
 
 
 EntFieldSUI = engine.Entity(event_create=FieldSUI_create, event_step=FieldSUI_step, event_draw=FieldSUI_draw,

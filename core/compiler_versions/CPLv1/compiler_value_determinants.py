@@ -24,7 +24,11 @@ def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion,
 def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     s_codepart = set(codepart)
     numeric = s_codepart.issubset(csc.s_digdot)
-    if numeric and ('.' not in s_codepart):
+    if codepart in ('BOARDWIDTH', 'BOARD_WIDTH', 'BW'):
+        return ccb.Value(ccb.Global.GLOBALTECHVAR, 'board_width'), CompilerConclusion(0), None
+    elif codepart in ('BOARDHEIGHT', 'BOARD_HEIGHT', 'BH'):
+        return ccb.Value(ccb.Global.GLOBALTECHVAR, 'board_width'), CompilerConclusion(0), None
+    elif numeric and ('.' not in s_codepart):
         return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), None
     elif numeric and (codepart.count('.') == 1):
         return ccb.Value(ccb.Global.FIXEDVAR, float(codepart)), CompilerConclusion(0), None

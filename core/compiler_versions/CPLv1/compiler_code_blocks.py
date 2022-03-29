@@ -62,6 +62,25 @@ class Gate(ccbt.Gate):
         else:
             if self.fb is not None:
                 self.fb(localcell)
+    def __iter__(self):
+        self.iter_count = 0
+        return self
+    def __next__(self):
+        if self.iter_count < len(self.cb):
+            x = self.cb[self.iter_count]
+            self.iter_count += 1
+            return x
+        elif self.iter_count == len(self.cb):
+            self.iter_count += 1
+            return self.fb
+        else:
+            raise StopIteration
+    def __str__(self):
+        return f'<Gate [{", ".join(str(x) for x in self.cb)}]' + (f'[{str(self.fb)}]'
+                                                                  if self.fb is not None
+                                                                  else '') + '>'
+    def __repr__(self):
+        return f'<Gate [{len(self.cb)}]' + ('[F]' if self.fb is not None else '') + '>'
 
 class While(ccbt.While):
     def __init__(self, cond, block):

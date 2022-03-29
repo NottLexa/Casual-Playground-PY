@@ -132,7 +132,7 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
             block, l, concl, cur = read_line(code, l-spaces, version, tab)
             if not correct_concl(concl): return 0, ccb.BlockSequence(), concl, cur
             code_sequence.add(block)
-    return l, code_sequence, CompilerConclusion(0), None
+    return l-spaces, code_sequence, CompilerConclusion(0), None
 
 def read_line(code: str, startl: int, version: int, tab: int = 0):
     end = len(code)
