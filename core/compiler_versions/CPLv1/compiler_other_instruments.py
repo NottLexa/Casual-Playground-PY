@@ -71,7 +71,7 @@ def split_args3(code: str, *splitters, start: int = 0, end: int = None):
     if end is None:
         end = len(code)
 
-    splitters = sorted(splitters, reverse=True)
+    splitters = sorted(splitters, key=len, reverse=True)
 
     ret = ['']
 

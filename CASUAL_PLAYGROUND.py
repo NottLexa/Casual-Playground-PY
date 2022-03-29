@@ -25,7 +25,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #20
+  Alexey Kozhanov                                                                     #21
                                                                                DVLP BUILD
 ''')
 
@@ -102,7 +102,9 @@ loc = 'rus'
 current_instrument = {'type':None}
 
 global_variables = [{'objdata':{},
-                     'idlist':[]},
+                     'idlist':[],
+                     'board_width':10,
+                     'board_height':10,},
                     {}]
 idlist = global_variables[0]['idlist']
 objdata = global_variables[0]['objdata']
@@ -239,6 +241,10 @@ def FieldBoard_board_tasks(target):
 def FieldBoard_create(target):
     target.board_width = 32
     target.board_height = 32
+
+    global global_variables
+    global_variables[0]['board_width'] = target.board_width
+    global_variables[0]['board_height'] = target.board_height
 
     target.viewscale = 16
     FieldBoard_center_view(target)

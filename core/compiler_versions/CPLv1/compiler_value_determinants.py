@@ -3,8 +3,11 @@ from .compiler_other_instruments import *
 from . import compiler_code_blocks as ccb
 from ... import compiler_string_constants as csc
 
-MO = MATHOPERATORS = ['+-', '*/']
-SET_MO = set(''.join(MO))
+MO = MATHOPERATORS = [['==', '!=', '>=', '>', '<=', '<'], ['+', '-'], ['*', '/']]
+LIST_MO = []
+for part in MO:
+    LIST_MO.extend(part)
+SET_MO = set(LIST_MO)
 
 def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     joined = ''.join(codeparts)
@@ -15,6 +18,8 @@ def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion,
             if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
             inp.extend(write)
         return math_resolver(inp)
+    else:
+        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
 
 def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     s_codepart = set(codepart)
@@ -49,12 +54,24 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
             l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
             if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
             return ccb.Value(ccb.Global.FIXEDVAR, write, CompilerConclusion(0), None)
+        elif codepart[0] in cep.SET_EOC:
+            st = cep.EOC_index[codepart[0]]
+            _, _, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            _, write, concl, cur = split_args2(write, 0)
+            if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            return value_determinant(write)
         else:
             return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
 
 def value_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if len(codeparts) == 1:
-        return simple_determinant(codeparts[0])
+        splitted, concl, cur = split_args3(codeparts[0], *SET_MO)
+        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+        if splitted == codeparts:
+            return simple_determinant(codeparts[0])
+        else:
+            return complex_determinant(splitted)
     else:
         return complex_determinant(codeparts)
 
@@ -68,6 +85,8 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
                 vd2, concl, cur = value_determinant(allparts[l+1:])
                 if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
                 args = [vd1, vd2]
-                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div'}[mos], CoreFuncs, args), CompilerConclusion(0), None
+                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div',
+                                                   '==':'eq', '!=':'ne', '>=':'ge', '>':'gt',
+                                                   '<=':'le', '<':'lt'}[mos], CoreFuncs, args), CompilerConclusion(0), None
             except ValueError:
                 continue

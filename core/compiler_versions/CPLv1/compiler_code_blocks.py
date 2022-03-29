@@ -56,8 +56,9 @@ class Gate(ccbt.Gate):
         self.fb = false_block
     def __call__(self, localcell = None):
         for cond in self.cb:
-            self.cb[cond](localcell)
-            break
+            if cond[0].read(localcell):
+                cond[1](localcell)
+                break
         else:
             if self.fb is not None:
                 self.fb(localcell)
