@@ -26,7 +26,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #23
+  Alexey Kozhanov                                                                     #24
                                                                                DVLP BUILD
 ''')
 
@@ -246,6 +246,26 @@ def FieldBoard_center_view(target):
     target.viewx = (target.viewscale*target.board_width//2) - (WIDTH2)
     target.viewy = (target.viewscale*target.board_height//2) - (HEIGHT2)
 
+def FieldBoard_zoom_out(target, mul):
+    oldvs = target.viewscale
+    target.viewscale = engine.clamp(target.viewscale - engine.clamp(int(0.2 * mul * target.viewscale), 1, 64), 2, 64)
+    newvs = target.viewscale
+
+    target.viewx = (target.viewx + (WIDTH2)) * newvs / oldvs - (WIDTH2)
+    target.viewy = (target.viewy + (HEIGHT2)) * newvs / oldvs - (HEIGHT2)
+
+    target.surfaces['board'] = FieldBoard_user_draw_board(target)
+
+def FieldBoard_zoom_in(target, mul):
+    oldvs = target.viewscale
+    target.viewscale = engine.clamp(target.viewscale + engine.clamp(int(0.2 * mul * target.viewscale), 1, 64), 2, 64)
+    newvs = target.viewscale
+
+    target.viewx = (target.viewx + (WIDTH2)) * newvs / oldvs - (WIDTH2)
+    target.viewy = (target.viewy + (HEIGHT2)) * newvs / oldvs - (HEIGHT2)
+
+    target.surfaces['board'] = FieldBoard_user_draw_board(target)
+
 def FieldBoard_board_step(target):
     for y in range(target.board_height):
         for x in range(target.board_width):
@@ -282,11 +302,17 @@ def FieldBoard_create(target):
                    'down': False,
                    'speedup':False,
                    'speeddown':False,
-                   'rmb':False}
+                   'rmb':False,
+                   'plus':False,
+                   'minus':False,}
 
-    target.cameraspeed = 6
-    target.mincamspeed = 3
-    target.maxcamspeed = 12
+    target.cameraspeed = round(math.log2((2**9)*scale/100)) #round(9*scale/100)
+    target.mincamspeed = round(math.log2((2**6)*scale/100)) #round(6*scale/100)
+    target.maxcamspeed = round(math.log2((2**14)*scale/100)) #round(14*scale/100)
+    target.hsp = 0
+    target.vsp = 0
+    target.acceleration = 8
+    target.zoomspeed = 1
 
     target.linecolor_infield = 'gray10'
     target.linecolor_outfield = 'gray40'
@@ -307,8 +333,30 @@ def FieldBoard_step(target):
     #tl_cell = target.board[0][0]
     #print(tl_cell.locals, tl_cell.tasks)
 
-    target.viewx += deltatime * 2**target.cameraspeed * (target.keys['right']-target.keys['left'])
-    target.viewy += deltatime * 2**target.cameraspeed * (target.keys['down']-target.keys['up'])
+    if target.keys['plus']:
+        FieldBoard_zoom_in(target, target.zoomspeed*deltatime)
+    if target.keys['minus']:
+        FieldBoard_zoom_out(target, target.zoomspeed*deltatime)
+
+    limitspeed = 2**target.cameraspeed
+    acc = limitspeed*target.acceleration
+
+    hmov = target.keys['right'] - target.keys['left']
+    vmov = target.keys['down'] - target.keys['up']
+
+    if hmov != 0:
+        target.hsp = engine.clamp(target.hsp + deltatime*acc*hmov, -limitspeed, limitspeed)
+    else:
+        target.hsp = engine.clamp(target.hsp - deltatime*engine.sign(target.hsp)*acc,
+                                  min(target.hsp, 0), max(0, target.hsp))
+    if vmov != 0:
+        target.vsp = engine.clamp(target.vsp + deltatime*acc*vmov, -limitspeed, limitspeed)
+    else:
+        target.vsp = engine.clamp(target.vsp - deltatime*engine.sign(target.vsp)*acc,
+                                  min(target.vsp, 0), max(0, target.vsp))
+
+    target.viewx += deltatime * target.hsp
+    target.viewy += deltatime * target.vsp
 
     if target.keys['rmb']:
         if current_instrument['type'] == 'pencil':
@@ -385,15 +433,19 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         else:
             pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, WIDTH, bordersize))
 
-    txt = render_font('default', fontsize_default, f'Speed: {2**target.cameraspeed}', False, 'white')
+    txt = render_font('default', fontsize_default, f'Max speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
+    txt = render_font('default', fontsize_default, f'hsp: {round(target.hsp)} / vsp: {round(target.vsp)}',
+                      False, 'white')
+    surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
+                       surface.get_height() - txt.get_height() - 2 - (fontsize_default-2)))
 
     if current_instrument['type'] == 'pencil':
         txt = render_font('default', fontsize_default, f'Pencil: {idlist[current_instrument["cell"]]}', False, 'white')
 
         surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
-                           surface.get_height() - txt.get_height() - 2 - fontsize-2))
+                           surface.get_height() - txt.get_height() - 2 - 2*(fontsize_default-2)))
 
     #for ix in range(0, WIDTH, 16+1):
     #    for iy in range(0, HEIGHT, 16+1):
@@ -405,15 +457,19 @@ def FieldBoard_kb_pressed(target, key):
     setkey = True
     if key in (pygame.K_UP, pygame.K_w):
         target.keys['up'] = setkey
-    if key in (pygame.K_LEFT, pygame.K_a):
+    elif key in (pygame.K_LEFT, pygame.K_a):
         target.keys['left'] = setkey
-    if key in (pygame.K_RIGHT, pygame.K_d):
+    elif key in (pygame.K_RIGHT, pygame.K_d):
         target.keys['right'] = setkey
-    if key in (pygame.K_DOWN, pygame.K_s):
+    elif key in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
-    if key == pygame.K_q:
+    elif key == pygame.K_EQUALS:
+        target.keys['plus'] = setkey
+    elif key == pygame.K_MINUS:
+        target.keys['minus'] = setkey
+    elif key == pygame.K_q:
         target.cameraspeed = engine.clamp(target.cameraspeed-1, target.mincamspeed, target.maxcamspeed)
-    if key == pygame.K_e:
+    elif key == pygame.K_e:
         target.cameraspeed = engine.clamp(target.cameraspeed+1, target.mincamspeed, target.maxcamspeed)
 
 def FieldBoard_kb_released(target, key):
@@ -426,29 +482,19 @@ def FieldBoard_kb_released(target, key):
         target.keys['right'] = setkey
     elif key in (pygame.K_DOWN, pygame.K_s):
         target.keys['down'] = setkey
+    elif key == pygame.K_EQUALS:
+        target.keys['plus'] = setkey
+    elif key == pygame.K_MINUS:
+        target.keys['minus'] = setkey
 
 def FieldBoard_mouse_pressed(target, mousepos, buttonid):
     setkey = True
     if buttonid == 3: # Use instrument
         target.keys['rmb'] = setkey
     elif buttonid == 4: # Scroll up
-        oldvs = target.viewscale
-        target.viewscale = engine.clamp(target.viewscale-engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
-        newvs = target.viewscale
-
-        target.viewx = (target.viewx+(WIDTH2))*newvs/oldvs - (WIDTH2)
-        target.viewy = (target.viewy+(HEIGHT2))*newvs/oldvs - (HEIGHT2)
-
-        target.surfaces['board'] = FieldBoard_user_draw_board(target)
+        FieldBoard_zoom_in(target, 1)
     elif buttonid == 5: # Scroll down
-        oldvs = target.viewscale
-        target.viewscale = engine.clamp(target.viewscale+engine.clamp(int(0.2*target.viewscale), 1, 64), 2, 64)
-        newvs = target.viewscale
-
-        target.viewx = (target.viewx+(WIDTH2))*newvs/oldvs - (WIDTH2)
-        target.viewy = (target.viewy+(HEIGHT2))*newvs/oldvs - (HEIGHT2)
-
-        target.surfaces['board'] = FieldBoard_user_draw_board(target)
+        FieldBoard_zoom_out(target, 1)
 
 def FieldBoard_mouse_released(target, mousepos, buttonid):
     setkey = False

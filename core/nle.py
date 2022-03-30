@@ -1,6 +1,6 @@
 '''
 NLE1 (NotLexaEngine 1) for Python 3.10+, Pygame 2.1+
-Version: 1.0.0
+Version: 1.2.0
 License: CC BY-NC-SA 4.0
 
 пожалуйста не спрашивайте почему я использовал этот скрипт а не напрямую pygame для Casual Playground.
@@ -19,6 +19,10 @@ import typing
 import math
 import pygame
 
+
+def sign(x):
+    '''возвращает 1, если число положительное, -1 если число отрицательное, 0 если число равно 0.'''
+    return -1 if x < 0 else int(x > 0)
 
 def lengthdir_x(len, dir):
     '''координата x конца вектора с длиной len и углом dir.'''
