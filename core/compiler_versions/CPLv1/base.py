@@ -7,7 +7,7 @@ from . import compiler_code_blocks as ccb
 from . import compiler_block_definers as cbd
 
 class LineType:
-    ADDNEW, ADDCONDBLOCK, ADDFALSEBLOCK = range(3)
+    UNKNOWN, ADDNEW, ADDCONDBLOCK, ADDFALSEBLOCK = range(4)
 
 def chapter_cell(code: str, startl: int):
     l = startl
@@ -20,10 +20,14 @@ def chapter_cell(code: str, startl: int):
         if not correct_concl(concl):
             return 0, {}, concl, cur
         if len(write) > 0:
-            ret['name'] = eval(write[0])
+            _, _, ret['name'], concl, cur = cep.string_only_embedded(write[0], 0, cep.DOUBLEQUOTEMARK)
+            if not correct_concl(concl):
+                return 0, {}, concl, cur
         if len(write) > 1:
-            ret['desc'] = eval(write[1])
-    return l, ret, CompilerConclusion(0), None
+            _, _, ret['desc'], concl, cur = cep.string_only_embedded(write[1], 0, cep.DOUBLEQUOTEMARK)
+            if not correct_concl(concl):
+                return 0, {}, concl, cur
+    return l, ret, CompilerConclusion(0), CompilerCursor(None)
 
 def chapter_notexture(code: str, startl: int):
     l = startl
@@ -41,7 +45,7 @@ def chapter_notexture(code: str, startl: int):
             ret['notexture'][1] = int(float(write[1]))
         if len(write) > 2:
             ret['notexture'][2] = int(float(write[2]))
-    return l, ret, CompilerConclusion(0), None
+    return l, ret, CompilerConclusion(0), CompilerCursor(None)
 
 def chapter_localization(code: str, startl: int):
     l = startl
@@ -54,12 +58,21 @@ def chapter_localization(code: str, startl: int):
         l += 1
         while code[l:l + 4] == '    ':
             l += 4
-            l, write, concl, cur = split_args2(code, l)
+            write, concl, cur = split_args1(code, l)
             if not correct_concl(concl):
                 return 0, {}, concl, cur
-            lang, name, desc = write
-            ret_localization[lang] = {'name': eval(name), 'desc': eval(desc)}
-    return l, ret_localization, CompilerConclusion(0), None
+            ret_localization[write[0]] = {}
+            if len(write) > 1:
+                _, _, ret_localization[write[0]]['name'], concl, cur = cep.string_only_embedded(write[1],
+                                                                                            0, cep.DOUBLEQUOTEMARK)
+                if not correct_concl(concl):
+                    return 0, {}, concl, cur
+            if len(write) > 2:
+                _, _, ret_localization[write[0]]['desc'], concl, cur = cep.string_only_embedded(write[2],
+                                                                                            0, cep.DOUBLEQUOTEMARK)
+                if not correct_concl(concl):
+                    return 0, {}, concl, cur
+    return l, ret_localization, CompilerConclusion(0), CompilerCursor(None)
 
 def chapter_script(code: str, startl: int, version: int):
     l = startl
@@ -78,7 +91,7 @@ def chapter_script(code: str, startl: int, version: int):
         l += 1
         l, ret_script[script_type], concl, cur = read_code(code, l, tab=1, version=version)
         if concl != CompilerConclusion(0): return 0, {}, concl, cur
-    return l, ret_script, CompilerConclusion(0), None
+    return l, ret_script, CompilerConclusion(0), CompilerCursor(None)
 
 def get(code: str, start: int, end: int = None) -> get_hinting:
     if end is None:
@@ -98,25 +111,21 @@ def get(code: str, start: int, end: int = None) -> get_hinting:
     l = start
     while l < end:
         l, ret_expand, concl, cursor = chapter_cell(code, l)
-        if concl != CompilerConclusion(0):
-            return {}, concl, cursor
+        if not correct_concl(concl): return {}, concl, cursor
         ret.update(ret_expand)
         l, ret_expand, concl, cursor = chapter_notexture(code, l)
-        if concl != CompilerConclusion(0):
-            return {}, concl, cursor
+        if not correct_concl(concl): return {}, concl, cursor
         ret.update(ret_expand)
         l, ret_expand, concl, cursor = chapter_localization(code, l)
-        if concl != CompilerConclusion(0):
-            return {}, concl, cursor
+        if not correct_concl(concl): return {}, concl, cursor
         ret['localization'].update(ret_expand)
         l, ret_expand, concl, cursor = chapter_script(code, l, ret['version'])
-        if concl != CompilerConclusion(0):
-            return {}, concl, cursor
+        if not correct_concl(concl): return {}, concl, cursor
         ret['script'].update(ret_expand)
 
         l += 1
 
-    return ret, CompilerConclusion(0), None
+    return ret, CompilerConclusion(0), CompilerCursor(None)
 
 def read_code(code: str, startl: int, version: int, tab: int = 0):
     code_sequence = ccb.BlockSequence()
@@ -132,7 +141,9 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
         elif spaces > tab*4: # upper tab
             return 0, ccb.BlockSequence(), CompilerConclusion(206), CompilerCursor(code, l)
         else:
-            linetype, block, l, concl, cur = read_line(code, l-spaces, version, tab)
+            linetype, block, l1, concl, cur = read_line(code, l-spaces, version, tab)
+            cur = CompilerCursor(code, l, l1, cur.sl, cur.el)
+            l = l1
             if not correct_concl(concl): return 0, ccb.BlockSequence(), concl, cur
             match linetype:
                 case LineType.ADDNEW:
@@ -141,18 +152,18 @@ def read_code(code: str, startl: int, version: int, tab: int = 0):
                     if isinstance(code_sequence[-1], ccb.Gate):
                         code_sequence[-1].cb.append(block)
                     else:
-                        return 0, ccb.BlockSequence(), CompilerConclusion(207), None
+                        return 0, ccb.BlockSequence(), CompilerConclusion(207), CompilerCursor(None)
                 case LineType.ADDFALSEBLOCK:
                     if isinstance(code_sequence[-1], ccb.Gate):
                         if code_sequence[-1].fb is None:
                             code_sequence[-1].fb = block
                         else:
-                            return 0, ccb.BlockSequence(), CompilerConclusion(209), None
+                            return 0, ccb.BlockSequence(), CompilerConclusion(209), CompilerCursor(None)
                     else:
-                        return 0, ccb.BlockSequence(), CompilerConclusion(208), None
+                        return 0, ccb.BlockSequence(), CompilerConclusion(208), CompilerCursor(None)
                 case _:
                     code_sequence.add(block)
-    return l-spaces, code_sequence, CompilerConclusion(0), None
+    return l-spaces, code_sequence, CompilerConclusion(0), CompilerCursor(None)
 
 def read_line(code: str, startl: int, version: int, tab: int = 0):
     end = len(code)
@@ -160,14 +171,19 @@ def read_line(code: str, startl: int, version: int, tab: int = 0):
 
     l, write, concl, cur = split_args2(code, l)
     if not correct_concl(concl): return LineType.ADDNEW, ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+    elif write[0] == 'WHILE':
+        value, concl, cur = cbd.value_determinant(write[1:])
+        if not correct_concl(concl): return LineType.UNKNOWN, ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+        l, seq, concl, cur = read_code(code, l, version, tab + 1)
+        return LineType.ADDNEW, ccb.While(value, seq), l, concl, cur
     if write[0] == 'IF':
         value, concl, cur = cbd.value_determinant(write[1:])
-        if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+        if not correct_concl(concl): return LineType.UNKNOWN, ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
         l, seq, concl, cur = read_code(code, l, version, tab+1)
         return LineType.ADDNEW, ccb.Gate([[value, seq]]), l, concl, cur
     elif write[0] == 'ELSEIF':
         value, concl, cur = cbd.value_determinant(write[1:])
-        if not correct_concl(concl): return ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
+        if not correct_concl(concl): return LineType.UNKNOWN, ccb.Block(ccb.Global.UNKNOWNBLOCK), 0, concl, cur
         l, seq, concl, cur = read_code(code, l, version, tab+1)
         return LineType.ADDCONDBLOCK, [value, seq], l, concl, cur
     elif write[0] == 'ELSE':

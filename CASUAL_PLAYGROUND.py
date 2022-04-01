@@ -26,7 +26,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #24
+  Alexey Kozhanov                                                                     #25
                                                                                DVLP BUILD
 ''')
 
@@ -45,8 +45,8 @@ deltatime = 0
 
 #region [LOADING FUNCTIONS]
 def timeformat(dt: datetime, type: int):
-    date = f'{dt.day}.{dt.month}.{dt.year}'
-    time = f'{dt.hour}:{dt.minute}:{dt.second}'
+    date = f'{dt.day:02}.{dt.month:02}.{dt.year}'
+    time = f'{dt.hour:02}:{dt.minute:02}:{dt.second:02}'
     ms = f'.{dt.microsecond}'
     match type:
         case 0:
@@ -80,7 +80,7 @@ def load_modlist(modsfolder):
     filtered = filter(filter_func, os.listdir(modsfolder))
     return list(filtered)
 
-def load_mod(modfolder, author, official):
+def load_mod(modfolder, origin, official):
     mods = {}
     for m in os.listdir(modfolder):
         path = ntpath.join(modfolder, m)
@@ -94,13 +94,18 @@ def load_mod(modfolder, author, official):
                                        datetime.now(),
                                        f'Couldn\'t load {path}',
                                        f'CasualPlayground Compiler encountered an error: {concl.code}',
-                                       concl.description()])
+                                       concl.description(),
+                                       cur.highlight(),
+                                       cur.string()])
                         #print(f'{time} ')
                         continue
                 modname = m[:-4]
-                moddata['author'] = author
+                moddata['origin'] = origin
                 moddata['official'] = official
-                mods[modname] = moddata
+                if official:
+                    mods[modname] = moddata
+                else:
+                    mods[f'{origin}/{modname}'] = moddata
     return mods
 #endregion
 
@@ -110,9 +115,9 @@ current_instrument = {'type':None}
 
 global_variables = [{'objdata':{},
                      'idlist':[],
+                     'logger':[],
                      'board_width':10,
-                     'board_height':10,
-                     'logger':[]},
+                     'board_height':10},
                     {}]
 idlist = global_variables[0]['idlist']
 objdata = global_variables[0]['objdata']
@@ -195,6 +200,7 @@ print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 ccbt.BlockSequence: (False, '<BlockSeq', '>'),
                                                 ccbt.Block: (False, '<Block', '>'),
                                                 ccbt.Gate: (False, '<Gate', '>'),
+                                                ccbt.While: (False, '<While', '>')
                                                 }))
 
 cell_fill_on_init = objdata['grass']

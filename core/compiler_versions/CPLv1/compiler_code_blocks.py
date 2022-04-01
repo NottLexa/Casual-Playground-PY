@@ -3,7 +3,10 @@ import core.compiler_code_blocks_types as ccbt
 class Global:
     UNKNOWNBLOCK, SETVAR, RUNFUNC = range(3)
     FUNC, LOCALVAR, TECHVAR, GLOBALVAR, GLOBALTECHVAR, FIXEDVAR, EMPTY = range(7)
-
+    WRITABLES = range(LOCALVAR, GLOBALVAR+1) #set([LOCALVAR, TECHVAR, GLOBALVAR])
+    @staticmethod
+    def writable(type):
+        return type in Global.WRITABLES
     @staticmethod
     def back_funcs(value_to_name):
         return ['UNKNOWNBLOCK', 'SETVAR', 'RUNFUNC'][value_to_name]
@@ -87,8 +90,20 @@ class While(ccbt.While):
         self.cond = cond
         self.block = block
     def __call__(self, localcell = None):
-        while self.cond(localcell):
+        while self.cond.read(localcell):
             self.block(localcell)
+    def __iter__(self):
+        self.iter_count = 0
+        return self
+    def __next__(self):
+        if self.iter_count == 0:
+            self.iter_count += 1
+            return self.cond
+        elif self.iter_count == 1:
+            self.iter_count += 1
+            return self.block
+        else:
+            raise StopIteration
 
 class Block(ccbt.Block):
     def __init__(self, type, *data):
@@ -135,7 +150,10 @@ class Value(ccbt.Value):
             sourcedata = localcell
         match self.type:
             case Global.FUNC:
-                return getattr(self.source, self.value)(localcell, *self.args)
+                if hasattr(self.source, self.value):
+                    return getattr(self.source, self.value)(localcell, *self.args)
+                else:
+                    return getattr(self.source, '_' + self.value)(localcell, *self.args)
             case Global.LOCALVAR:
                 return sourcedata.locals[self.value]
             case Global.TECHVAR:
@@ -158,8 +176,6 @@ class Value(ccbt.Value):
                 sourcedata.techvars[self.value] = newvalue
             case Global.GLOBALVAR:
                 sourcedata.globals[1][self.value] = newvalue
-            case Global.GLOBALTECHVAR:
-                sourcedata.globals[0][self.value] = newvalue
     def __repr__(self):
         match self.type:
             case Global.FUNC:

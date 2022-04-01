@@ -8,8 +8,9 @@ punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"""
 printable = naming + punctuation + whitespace
 
 s_dig = set(digits)
-s_digdot = s_dig | set('.')
+s_num = s_dig | set('.')
 s_ascl = set(ascii_lowercase)
 s_ascu = set(ascii_uppercase)
 s_asc = s_ascl | s_ascu
-s_nam = s_dig | s_asc
+s_nam = s_dig | s_asc | set('_')
+s_nonam = s_dig | set('_')

@@ -33,7 +33,7 @@ def string_embedded_quotemark(code: str, start: int, sepsym: str):
             break
     else:
         return 0, 0, '', CompilerConclusion(201), CompilerCursor(code, start)
-    return indexes[0], indexes[1]+1, write, CompilerConclusion(0), None
+    return indexes[0], indexes[1]+1, write, CompilerConclusion(0), CompilerCursor(None)
 
 def string_embedded_brackets(code: str, start: int, sepsym: str):
     indexes = [-1, -1]
@@ -71,10 +71,12 @@ def string_embedded_brackets(code: str, start: int, sepsym: str):
             l += 1
     else:
         return 0, 0, '', CompilerConclusion(201), CompilerCursor(code, start)
-    return indexes[0], indexes[1]+1, write, CompilerConclusion(0), None
+    return indexes[0], indexes[1]+1, write, CompilerConclusion(0), CompilerCursor(None)
 
 def string_embedded(code: str, start: int, separationtype: int):
     sepsym = ['()', '[]', '{}', '"', "'"][separationtype]
+    if code[start] not in sepsym[0]:
+        return 0, 0, '', CompilerConclusion(304), None
     type = (separationtype in [DOUBLEQUOTEMARK, SINGLEQUOTEMARK]) # False - brackets, True - quote marks
     if type:
         return string_embedded_quotemark(code, start, sepsym)
@@ -84,6 +86,6 @@ def string_embedded(code: str, start: int, separationtype: int):
 def string_only_embedded(code: str, start: int, separationtype: int):
     ret = string_embedded(code, start, separationtype)
     if correct_concl(ret[3]):
-        return ret[0], ret[1], ret[2][1:-1], ret[3], None
+        return ret[0], ret[1], ret[2][1:-1], ret[3], CompilerCursor(None)
     else:
         return ret

@@ -1,22 +1,49 @@
 class CompilerCursor:
-    def __init__(self, codetxt: str = '', index: int = 0):
-        start = codetxt.rfind('\n', 0, index)
-        end = codetxt.find('\n', index)
-
-        self.si = start+1
-        self.ei = end
-        self.txt = codetxt[self.si:self.ei]
+    def __init__(self, codetxt: str | None = None, *indexes: int):
+        if isinstance(codetxt, str):
+            if len(indexes) == 0:
+                self.txt = codetxt
+            else:
+                if len(indexes) == 1:
+                    self.sl = codetxt.rfind('\n', 0, indexes[0]) + 1
+                    self.el = codetxt.find('\n', indexes[0])
+                    self.sh = 0
+                    self.eh = -1
+                elif len(indexes) == 2:
+                    self.sl = indexes[0]
+                    self.el = indexes[1]
+                    self.sh = 0
+                    self.eh = -1
+                elif len(indexes) == 3:
+                    self.sl = indexes[0]
+                    self.el = indexes[1]
+                    self.sh = indexes[2]
+                    self.eh = indexes[2]
+                elif len(indexes) == 4:
+                    self.sl = indexes[0]
+                    self.el = indexes[1]
+                    self.sh = indexes[2]
+                    self.eh = indexes[3]
+                self.txt = codetxt[self.sl:self.el]
+        else: # if codetxt is None
+            self.sl = 0
+            self.el = -1
+            self.sh = 0
+            self.eh = -1
+            self.txt = '<Not specified where>'
 
     def __repr__(self):
-        return f'CompilerCursor[{self.si}:{self.ei}]'
+        return f'CompilerCursor[{self.sl}:{self.el}]'
     def __str__(self):
-        return f'CompilerCursor[{self.si}:{self.ei}]: "{self.txt}"'
+        return f'CompilerCursor[{self.sl}:{self.el}]: "{self.txt}"'
     def start(self):
-        return self.si
+        return self.sl
     def end(self):
-        return self.ei
+        return self.el
     def string(self):
         return self.txt
+    def highlight(self, sym: str = 'v'):
+        return ((self.sl-self.sh)*' ')+((self.eh-self.sh+1)*sym)
 
 class CompilerConclusion:
     ids = [
@@ -51,6 +78,7 @@ class CompilerConclusion:
             1: 'Value error: unidentifiable value',
             2: 'Value error: trying to write read-only variable',
             3: 'Value error: trying to read non-existent variable',
+            4: 'Value error: put value is of incorrect type'
         }.values()),
         # 4-- / Runtime error
         list({

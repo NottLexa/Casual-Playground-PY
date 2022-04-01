@@ -36,7 +36,7 @@ def split_args1(code: str, start: int = 0, end: int | str = None):
     if write != '':
         args.append(write)
 
-    return args, CompilerConclusion(0), None
+    return args, CompilerConclusion(0), CompilerCursor(None)
 
 def split_args2(code: str, start: int = 0):
     end = len(code)
@@ -65,7 +65,7 @@ def split_args2(code: str, start: int = 0):
     if write != '':
         args.append(write)
 
-    return end+1, args, CompilerConclusion(0), None
+    return end+1, args, CompilerConclusion(0), CompilerCursor(None)
 
 def split_args3(code: str, *splitters, start: int = 0, end: int = None):
     if end is None:
@@ -96,4 +96,4 @@ def split_args3(code: str, *splitters, start: int = 0, end: int = None):
                 l += 1
     if ret[-1] == '':
         ret.pop(-1)
-    return ret, CompilerConclusion(0), None
+    return ret, CompilerConclusion(0), CompilerCursor(None)

@@ -19,27 +19,33 @@ def complex_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion,
             inp.extend(write)
         return math_resolver(inp)
     else:
-        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
+        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)
 
 def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     s_codepart = set(codepart)
-    numeric = s_codepart.issubset(csc.s_digdot)
-    if codepart in ('BOARDWIDTH', 'BOARD_WIDTH', 'BW'):
-        return ccb.Value(ccb.Global.GLOBALTECHVAR, 'board_width'), CompilerConclusion(0), None
-    elif codepart in ('BOARDHEIGHT', 'BOARD_HEIGHT', 'BH'):
-        return ccb.Value(ccb.Global.GLOBALTECHVAR, 'board_width'), CompilerConclusion(0), None
+    numeric = s_codepart.issubset(csc.s_num)
+    if codepart in {'BOARDWIDTH', 'BOARD_WIDTH', 'BW'}:
+        return ccb.Value(ccb.Global.GLOBALTECHVAR, 'board_width'), \
+               CompilerConclusion(0), CompilerCursor(None)
+    elif codepart in {'BOARDHEIGHT', 'BOARD_HEIGHT', 'BH'}:
+        return ccb.Value(ccb.Global.GLOBALTECHVAR, 'board_width'), \
+               CompilerConclusion(0), CompilerCursor(None)
     elif numeric and ('.' not in s_codepart):
-        return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), None
+        return ccb.Value(ccb.Global.FIXEDVAR, int(codepart)), CompilerConclusion(0), CompilerCursor(None)
     elif numeric and (codepart.count('.') == 1):
-        return ccb.Value(ccb.Global.FIXEDVAR, float(codepart)), CompilerConclusion(0), None
+        return ccb.Value(ccb.Global.FIXEDVAR, float(codepart)), CompilerConclusion(0), CompilerCursor(None)
     else:
-        namable = lambda x: (set(x).issubset(csc.s_nam)) and (x[0] not in csc.s_dig)
+        namable = lambda x: (set(x).issubset(csc.s_nam)) and (x[0] not in csc.s_nonam)
         name1 = codepart[1:]
         name2 = codepart[2:]
         if codepart[:2] == '__' and namable(name2): # techvar (read-only)
-            return ccb.Value(ccb.Global.TECHVAR, name2), CompilerConclusion(0), None
+            return ccb.Value(ccb.Global.TECHVAR, name2), CompilerConclusion(0), CompilerCursor(None)
         elif codepart[0] == '_' and namable(name1): # localvar
-            return ccb.Value(ccb.Global.LOCALVAR, name1), CompilerConclusion(0), None
+            return ccb.Value(ccb.Global.LOCALVAR, name1), CompilerConclusion(0), CompilerCursor(None)
+        elif codepart[0] == '#' and namable(name1):
+            return ccb.Value(ccb.Global.FUNC, 'cellid_by_name', CoreFuncs, [ccb.Value(ccb.Global.FIXEDVAR, name1)]),\
+                   CompilerConclusion(0), CompilerCursor(None)
+            #return ccb.Value(ccb.Global.GLOBALTECHVAR, ('idlist', name1)), CompilerConclusion(0), CompilerCursor(None)
         elif codepart[0] == ':': # function
             l0, l1, w, concl, cur = cep.string_embedded_brackets(codepart, 1, '()')
             if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
@@ -52,12 +58,13 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
                 nv, concl, cur = value_determinant(sv)
                 if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
                 args.append(nv)
-            return ccb.Value(ccb.Global.FUNC, codepart[1:l0], CoreFuncs, args), CompilerConclusion(0), None
+            return ccb.Value(ccb.Global.FUNC, codepart[1:l0], CoreFuncs, args),\
+                   CompilerConclusion(0), CompilerCursor(None)
         elif codepart[0] in '"\'':
             st = cep.EOC_index[codepart[0]]
             l0, l1, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
             if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-            return ccb.Value(ccb.Global.FIXEDVAR, write), CompilerConclusion(0), None
+            return ccb.Value(ccb.Global.FIXEDVAR, write), CompilerConclusion(0), CompilerCursor(None)
         elif codepart[0] in cep.SET_EOC:
             st = cep.EOC_index[codepart[0]]
             _, _, write, concl, cur = cep.string_only_embedded(codepart, 0, st)
@@ -66,7 +73,7 @@ def simple_determinant(codepart: str) -> (ccb.Value, CompilerConclusion, (Compil
             if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
             return value_determinant(write)
         else:
-            return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), None
+            return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)
 
 def value_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     if len(codeparts) == 1:
@@ -84,13 +91,25 @@ def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (Compi
         for mos in mop:
             try:
                 l = allparts.index(mos)
-                vd1, concl, cur = value_determinant(allparts[:l])
-                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-                vd2, concl, cur = value_determinant(allparts[l+1:])
-                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-                args = [vd1, vd2]
-                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div',
-                                                   '==':'eq', '!=':'ne', '>=':'ge', '>':'gt',
-                                                   '<=':'le', '<':'lt'}[mos], CoreFuncs, args), CompilerConclusion(0), None
+                if l == 0:
+                    if mos == '-':
+                        vd1 = ccb.Value(ccb.Global.FIXEDVAR, 0)
+                        vd2, concl, cur = value_determinant(allparts[l+1:])
+                        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                        return ccb.Value(ccb.Global.FUNC, 'sub', CoreFuncs, [vd1, vd2]),\
+                               CompilerConclusion(0), CompilerCursor(None)
+                    else:
+                        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)
+                else:
+                    vd1, concl, cur = value_determinant(allparts[:l])
+                    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                    vd2, concl, cur = value_determinant(allparts[l+1:])
+                    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                    args = [vd1, vd2]
+                    return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div',
+                                                       '==':'eq', '!=':'ne', '>=':'ge', '>':'gt',
+                                                       '<=':'le', '<':'lt'}[mos], CoreFuncs, args),\
+                           CompilerConclusion(0), CompilerCursor(None)
             except ValueError:
                 continue
+    return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)

@@ -53,4 +53,23 @@ class CoreFuncs:
     @staticmethod
     def reply(cell, string):
         '''Sends a text reply to console logger.'''
-        cell.reply(0, string.read(cell))
+        cell.reply(0, str(string.read(cell)))
+    @staticmethod
+    def _and(cell, a, b):
+        '''Returns conjunction of A and B'''
+        return a.read(cell) & b.read(cell)
+    @staticmethod
+    def _or(cell, a, b):
+        '''Returns disjunction of A and B'''
+        return a.read(cell) | b.read(cell)
+    @staticmethod
+    def _xor(cell, a, b):
+        '''Returns XOR of A and B'''
+        return a.read(cell) ^ b.read(cell)
+    @staticmethod
+    def _not(cell, a):
+        '''Returns negation of A'''
+        return not a.read(cell)
+    @staticmethod
+    def cellid_by_name(cell, a):
+        return cell.globals[0]['idlist'].index(a.read())
