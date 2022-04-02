@@ -1,5 +1,6 @@
 import ntpath
 import os
+from threading import Thread
 
 import pygame
 import math
@@ -26,8 +27,8 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #26
-                                                                               DVLP BUILD
+  Alexey Kozhanov                                                                      #1
+                                                                           EXPERIMENTAL 1
 ''')
 
 pygame.init()
@@ -303,11 +304,6 @@ def FieldBoard_do_instrument(target):
                                                                            global_variables)
                                 target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
-def FieldBoard_board_step(target):
-    for y in range(target.board_height):
-        for x in range(target.board_width):
-            target.board[y][x].step()
-
 def FieldBoard_board_tasks(target):
     change_board = False
     for y in range(target.board_height):
@@ -371,6 +367,7 @@ def FieldBoard_create(target):
     target.timepaused = False
 
 def FieldBoard_step(target):
+    global run_step_board
     #tl_cell = target.board[0][0]
     #print(tl_cell.locals, tl_cell.tasks)
 
@@ -406,8 +403,10 @@ def FieldBoard_step(target):
     if not target.timepaused:
         target.time += deltatime
     if target.time > target.timepertick:
-        FieldBoard_board_step(target)
-        # target.time = 0 # moved to FieldBoard_after_step
+        while run_step_board: pass # if prev step board didn't end
+        run_step_board = True
+        #FieldBoard_board_step(target)
+        # target.time = 0 # moved to FieldBoard_step_after
 
 def FieldBoard_step_after(target):
     if target.time > target.timepertick:
@@ -647,26 +646,50 @@ engine.rooms.change_current_room(room_field)
 
 #region [LOOP]
 game_running = True
-while game_running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:  # выход
-            game_running = False
-        elif event.type == pygame.VIDEORESIZE:  # изменение размера экрана
-            screen.update_screen((event.w, event.h))
-        elif event.type == pygame.MOUSEMOTION:
-            engine.rooms.current_room.do_mouse_moved(screen.get_mousepos_on_canvas(event.pos))
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            engine.rooms.current_room.do_mouse_pressed(screen.get_mousepos_on_canvas(event.pos), event.button)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            engine.rooms.current_room.do_mouse_released(screen.get_mousepos_on_canvas(event.pos), event.button)
-        elif event.type == pygame.KEYDOWN:
-            engine.rooms.current_room.do_kb_pressed(event.key)
-        elif event.type == pygame.KEYUP:
-            engine.rooms.current_room.do_kb_released(event.key)
+run_step_board = False
 
-    screen.get_canvas().fill('black')
-    engine.rooms.current_room.do_step(screen.get_canvas())
-    screen.draw_screen()
-    pygame.display.flip()
-    deltatime = clock.tick()/1000
+def main():
+    global game_running, deltatime, screen
+    while game_running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:  # выход
+                game_running = False
+            elif event.type == pygame.VIDEORESIZE:  # изменение размера экрана
+                screen.update_screen((event.w, event.h))
+            elif event.type == pygame.MOUSEMOTION:
+                engine.rooms.current_room.do_mouse_moved(screen.get_mousepos_on_canvas(event.pos))
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                engine.rooms.current_room.do_mouse_pressed(screen.get_mousepos_on_canvas(event.pos), event.button)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                engine.rooms.current_room.do_mouse_released(screen.get_mousepos_on_canvas(event.pos), event.button)
+            elif event.type == pygame.KEYDOWN:
+                engine.rooms.current_room.do_kb_pressed(event.key)
+            elif event.type == pygame.KEYUP:
+                engine.rooms.current_room.do_kb_released(event.key)
+
+        screen.get_canvas().fill('black')
+        engine.rooms.current_room.do_step(screen.get_canvas())
+        screen.draw_screen()
+        pygame.display.flip()
+        deltatime = clock.tick()/1000
+
+def step_board(boardins):
+    global game_running, run_step_board
+    while game_running:
+        if run_step_board:
+            for y in range(boardins.board_height):
+                for x in range(boardins.board_width):
+                    boardins.board[y][x].step()
+            run_step_board = False
 #endregion
+
+# region [THREADING]
+thread_main = Thread(target=main)
+
+thread_board = Thread(target=step_board, args=(fieldboard,))
+
+if __name__ == '__main__':
+    thread_board.start()
+    main()
+    thread_board.join()
+# endregion
