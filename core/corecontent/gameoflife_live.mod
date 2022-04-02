@@ -14,7 +14,7 @@ SCRIPT STEP
         _cy = -1
         WHILE (_cy <= 1)
             IF :not(:and(_cx == 0, _cy == 0))
-                IF (:getcell(__X+_cx, __Y+_cy) == #gameoflife_live)
+                IF (:getcell(:clamp(__X+_cx, 0, BOARDWIDTH-1), :clamp(__Y+_cy, 0, BOARDHEIGHT-1)) == #gameoflife_live)
                     _counter = _counter + 1
             _cy = _cy + 1
         _cx = _cx + 1

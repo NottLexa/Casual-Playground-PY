@@ -26,7 +26,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #25
+  Alexey Kozhanov                                                                     #26
                                                                                DVLP BUILD
 ''')
 
@@ -85,7 +85,7 @@ def load_mod(modfolder, origin, official):
     for m in os.listdir(modfolder):
         path = ntpath.join(modfolder, m)
         if ntpath.isfile(path):
-            if path[-4:] == '.mod':
+            if path[-4:].lower() == '.mod':
                 with open(path, 'r', encoding='utf8') as f:
                     moddata, concl, cur = comp.get(f.read())
                     if not correct_concl(concl):
@@ -102,6 +102,9 @@ def load_mod(modfolder, origin, official):
                 modname = m[:-4]
                 moddata['origin'] = origin
                 moddata['official'] = official
+                imgpath = path[:-4]+'.png'
+                if ntpath.isfile(imgpath):
+                    moddata['texture'] = pygame.image.load(imgpath)
                 if official:
                     mods[modname] = moddata
                 else:
@@ -123,11 +126,11 @@ idlist = global_variables[0]['idlist']
 objdata = global_variables[0]['objdata']
 logger = global_variables[0]['logger']
 fontsize = scale*2
-fontsize_bigger  = 32*fontsize/scale
-fontsize_big     = 24*fontsize/scale
-fontsize_default = 16*fontsize/scale
-fontsize_small   = 12*fontsize/scale
-fontsize_smaller = 8*fontsize/scale
+fontsize_bigger  = int(32*fontsize/scale)
+fontsize_big     = int(24*fontsize/scale)
+fontsize_default = int(16*fontsize/scale)
+fontsize_small   = int(12*fontsize/scale)
+fontsize_smaller = int(8*fontsize/scale)
 fonts = {}
 
 fullgamepath = os.getcwd()
@@ -236,15 +239,20 @@ EntGlobalConsole = engine.Entity(event_create=GlobalConsole_create, event_step=G
 def FieldBoard_user_draw_board(target):
     bw, bh = target.board_width, target.board_height
     bordersize = round(target.viewscale*cellbordersize)
-    cellsize = target.viewscale
+    cellsize = target.viewscale+bordersize
     surface = pygame.Surface((cellsize*bw+bordersize, cellsize*bh+bordersize), pygame.SRCALPHA)
     surface.fill(target.linecolor_infield)
     for ix in range(bw):
         for iy in range(bh):
-            cx, cy = ix*cellsize, iy*cellsize
+            cx, cy = (ix*cellsize)+bordersize, (iy*cellsize)+bordersize
             celldata = target.board[iy][ix].code
-            pygame.draw.rect(surface, celldata['notexture'], (cx+bordersize, cy+bordersize,
-                                                              target.viewscale-bordersize, target.viewscale-bordersize))
+            if 'texture' in celldata:
+                txtr = pygame.transform.scale(celldata['texture'],
+                                              (target.viewscale, target.viewscale))
+                surface.blit(txtr, (cx, cy))
+            else:
+                pygame.draw.rect(surface, celldata['notexture'], (cx, cy,
+                                                              target.viewscale, target.viewscale))
 
     return surface
 
@@ -271,6 +279,29 @@ def FieldBoard_zoom_in(target, mul):
     target.viewy = (target.viewy + (HEIGHT2)) * newvs / oldvs - (HEIGHT2)
 
     target.surfaces['board'] = FieldBoard_user_draw_board(target)
+
+def FieldBoard_do_instrument(target):
+    bordersize = round(target.viewscale * cellbordersize)
+    cellsize = bordersize + target.viewscale
+    mx, my = screen.get_mousepos_on_canvas(pygame.mouse.get_pos())
+    rx, ry = mx + target.viewx - bordersize, my + target.viewy - bordersize
+    cx, cy = rx//cellsize, ry//cellsize
+    maxcx, maxcy = target.board_width, target.board_height
+    if target.keys['rmb']:
+        if current_instrument['type'] == 'pencil':
+            scale = current_instrument['scale']-1
+            if current_instrument['penciltype']: # round
+                pass
+            else: # square
+                if (rx % cellsize < (target.viewscale) and
+                        ry % cellsize < (target.viewscale)):
+                    for ix in range(int(cx)-scale, int(cx)+scale+1):
+                        for iy in range(int(cy)-scale, int(cy)+scale+1):
+                            if 0 <= ix < maxcx and 0 <= iy < maxcy:
+                                cellid = current_instrument['cell']
+                                target.board[iy][ix] = comp.Cell({'X': ix, 'Y': iy}, cellid, target.board,
+                                                                           global_variables)
+                                target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
 def FieldBoard_board_step(target):
     for y in range(target.board_height):
@@ -333,7 +364,11 @@ def FieldBoard_create(target):
     target.surfaces = {'board': FieldBoard_user_draw_board(target)}
 
     target.time = 0.0
+    target.tpt_power = 28
+    target.get_tpt = lambda n: ((10**(n//9))*(n%9) if n%9 != 0 else 10**((n//9)-1)*9) / 1000
+    target.tpt_min, target.tpt_max = 1, 60
     target.timepertick = 1.0
+    target.timepaused = False
 
 def FieldBoard_step(target):
     #tl_cell = target.board[0][0]
@@ -364,30 +399,12 @@ def FieldBoard_step(target):
     target.viewx += deltatime * target.hsp
     target.viewy += deltatime * target.vsp
 
-    if target.keys['rmb']:
-        if current_instrument['type'] == 'pencil':
-            bordersize = round(target.viewscale*cellbordersize)
-            mx, my = screen.get_mousepos_on_canvas(pygame.mouse.get_pos())
-            rx, ry = mx+target.viewx-bordersize, my+target.viewy-bordersize
-
-            cx = rx//target.viewscale
-            cy = ry//target.viewscale
-
-
-            maxcx = target.board_width
-            maxcy = target.board_height
-
-            if 0 <= cx < maxcx and 0 <= cy < maxcy:
-                if (rx%target.viewscale < (target.viewscale-bordersize) and
-                    ry%target.viewscale < (target.viewscale-bordersize)):
-                    cellid = current_instrument['cell']
-                    target.board[int(cy)][int(cx)] = comp.Cell({'X': int(cx), 'Y': int(cy)}, cellid, target.board,
-                                                               global_variables)
-                    target.surfaces['board'] = FieldBoard_user_draw_board(target)
+    FieldBoard_do_instrument(target)
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
 
-    target.time += deltatime
+    if not target.timepaused:
+        target.time += deltatime
     if target.time > target.timepertick:
         FieldBoard_board_step(target)
         # target.time = 0 # moved to FieldBoard_after_step
@@ -399,7 +416,7 @@ def FieldBoard_step_after(target):
 
 def FieldBoard_draw(target, surface: pygame.Surface):
     bordersize = round(target.viewscale*cellbordersize)
-    cellsize = target.viewscale
+    cellsize = target.viewscale+bordersize
     ox = -target.viewx%cellsize
     oy = -target.viewy%cellsize
     lx = math.ceil(WIDTH/cellsize)
@@ -447,8 +464,15 @@ def FieldBoard_draw(target, surface: pygame.Surface):
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2 - (fontsize_default-2)))
 
+    txt = render_font('default', fontsize_default,
+                      f'{target.timepertick}s '+('| Paused' if target.timepaused else ''), False, 'white')
+    surface.blit(txt, (int(txt.get_height()*0.25),
+                       surface.get_height() - int(txt.get_height()*1.25)))
+
     if current_instrument['type'] == 'pencil':
-        txt = render_font('default', fontsize_default, f'Pencil: {idlist[current_instrument["cell"]]}', False, 'white')
+        string = f'Pencil[{current_instrument["scale"]}] | {idlist[current_instrument["cell"]]} ' \
+                 f'| {"Round" if current_instrument["penciltype"] else "Square"}'
+        txt = render_font('default', fontsize_default, string, False, 'white')
 
         surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                            surface.get_height() - txt.get_height() - 2 - 2*(fontsize_default-2)))
@@ -477,6 +501,17 @@ def FieldBoard_kb_pressed(target, key):
         target.cameraspeed = engine.clamp(target.cameraspeed-1, target.mincamspeed, target.maxcamspeed)
     elif key == pygame.K_e:
         target.cameraspeed = engine.clamp(target.cameraspeed+1, target.mincamspeed, target.maxcamspeed)
+    elif key == pygame.K_c:
+        FieldBoard_center_view(target)
+        target.hsp = target.vsp = 0
+    elif key == pygame.K_f:
+        target.timepaused = not target.timepaused
+    elif key == pygame.K_r:
+        target.tpt_power = max(target.tpt_min, target.tpt_power-1)
+        target.timepertick = target.get_tpt(target.tpt_power)
+    elif key == pygame.K_t:
+        target.tpt_power = min(target.tpt_max, target.tpt_power+1)
+        target.timepertick = target.get_tpt(target.tpt_power)
 
 def FieldBoard_kb_released(target, key):
     setkey = False
@@ -494,13 +529,17 @@ def FieldBoard_kb_released(target, key):
         target.keys['minus'] = setkey
 
 def FieldBoard_mouse_pressed(target, mousepos, buttonid):
+    global current_instrument
     setkey = True
     if buttonid == 3: # Use instrument
         target.keys['rmb'] = setkey
     elif buttonid == 4: # Scroll up
-        FieldBoard_zoom_in(target, 1)
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT: current_instrument['scale'] += 1
+        else: FieldBoard_zoom_in(target, 1)
     elif buttonid == 5: # Scroll down
-        FieldBoard_zoom_out(target, 1)
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            current_instrument['scale'] = max(current_instrument['scale']-1, 1)
+        else: FieldBoard_zoom_out(target, 1)
 
 def FieldBoard_mouse_released(target, mousepos, buttonid):
     setkey = False
@@ -582,7 +621,7 @@ def FieldSUI_mouse_pressed(target, mousepos, buttonid):
             ci = (mx-eb)//detectwidth + ((my-eb)//detectheight)*inoneline
             cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
             if (cx <= mx <= cx+detectwidth-eb) and (cy <= my <= cy+detectheight-eb):
-                current_instrument = {'type': 'pencil', 'cell': int(ci)}
+                current_instrument = {'type': 'pencil', 'cell': int(ci), 'penciltype': False, 'scale': 1}
 
 
 EntFieldSUI = engine.Entity(event_create=FieldSUI_create, event_step=FieldSUI_step, event_draw=FieldSUI_draw,
