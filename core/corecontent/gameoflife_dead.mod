@@ -7,14 +7,20 @@ NOTEXTURE 17 17 17
 LOCALIZATION
     rus "ИЖ: Мёртвая клетка" "Мёртвая клетка из игры \"Жизнь\" Джона Конвея."
 
+SCRIPT CREATE
+    _mincx = :max(-1, -__X)
+    _mincy = :max(-1, -__Y)
+    _maxcx = :min(1, BOARDWIDTH-__X-1)
+    _maxcy = :min(1, BOARDHEIGHT-__Y-1)
+
 SCRIPT STEP
     _counter = 0
-    _cx = -1
-    WHILE (_cx <= 1)
-        _cy = -1
-        WHILE (_cy <= 1)
+    _cx = _mincx
+    WHILE (_cx <= _maxcx)
+        _cy = _mincy
+        WHILE (_cy <= _maxcy)
             IF :not(:and(_cx == 0, _cy == 0))
-                IF (:getcell(:clamp(__X+_cx, 0, BOARDWIDTH-1), :clamp(__Y+_cy, 0, BOARDHEIGHT-1)) == #gameoflife_live)
+                IF (:getcell(__X+_cx, __Y+_cy) == #gameoflife_live)
                     _counter = _counter + 1
             _cy = _cy + 1
         _cx = _cx + 1

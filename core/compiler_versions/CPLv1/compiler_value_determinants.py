@@ -89,27 +89,25 @@ def value_determinant(codeparts: list[str]) -> (ccb.Value, CompilerConclusion, (
 def math_resolver(allparts: list[str]) -> (ccb.Value, CompilerConclusion, (CompilerCursor | None)):
     for mop in MO:
         for mos in mop:
-            try:
-                l = allparts.index(mos)
-                if l == 0:
-                    if mos == '-':
-                        vd1 = ccb.Value(ccb.Global.FIXEDVAR, 0)
-                        vd2, concl, cur = value_determinant(allparts[l+1:])
-                        if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-                        return ccb.Value(ccb.Global.FUNC, 'sub', CoreFuncs, [vd1, vd2]),\
-                               CompilerConclusion(0), CompilerCursor(None)
-                    else:
-                        return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)
-                else:
-                    vd1, concl, cur = value_determinant(allparts[:l])
-                    if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+            l = len(allparts)-1
+            while l >= 0 and allparts[l] != mos: l -= 1
+            if l == 0:
+                if mos == '-':
+                    vd1 = ccb.Value(ccb.Global.FIXEDVAR, 0)
                     vd2, concl, cur = value_determinant(allparts[l+1:])
                     if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
-                    args = [vd1, vd2]
-                    return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div',
-                                                       '==':'eq', '!=':'ne', '>=':'ge', '>':'gt',
-                                                       '<=':'le', '<':'lt'}[mos], CoreFuncs, args),\
+                    return ccb.Value(ccb.Global.FUNC, 'sub', CoreFuncs, [vd1, vd2]),\
                            CompilerConclusion(0), CompilerCursor(None)
-            except ValueError:
-                continue
+                else:
+                    return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)
+            elif l > 0:
+                vd1, concl, cur = value_determinant(allparts[:l])
+                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                vd2, concl, cur = value_determinant(allparts[l+1:])
+                if not correct_concl(concl): return ccb.Value(ccb.Global.EMPTY), concl, cur
+                args = [vd1, vd2]
+                return ccb.Value(ccb.Global.FUNC, {'+':'add', '-':'sub', '*':'mul', '/':'div',
+                                                   '==':'eq', '!=':'ne', '>=':'ge', '>':'gt',
+                                                   '<=':'le', '<':'lt'}[mos], CoreFuncs, args),\
+                       CompilerConclusion(0), CompilerCursor(None)
     return ccb.Value(ccb.Global.EMPTY), CompilerConclusion(301), CompilerCursor(None)
