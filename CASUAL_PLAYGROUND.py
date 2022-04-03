@@ -1,5 +1,6 @@
 import ntpath
 import os
+import time
 
 import pygame
 import math
@@ -26,7 +27,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #26
+  Alexey Kozhanov                                                                     #27
                                                                                DVLP BUILD
 ''')
 
@@ -304,9 +305,11 @@ def FieldBoard_do_instrument(target):
                                 target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
 def FieldBoard_board_step(target):
+    start = time.time()
     for y in range(target.board_height):
         for x in range(target.board_width):
             target.board[y][x].step()
+    target.time_elapsed = time.time()-start
 
 def FieldBoard_board_tasks(target):
     change_board = False
@@ -368,7 +371,8 @@ def FieldBoard_create(target):
     target.get_tpt = lambda n: ((10**(n//9))*(n%9) if n%9 != 0 else 10**((n//9)-1)*9) / 1000
     target.tpt_min, target.tpt_max = 1, 60
     target.timepertick = 1.0
-    target.timepaused = False
+    target.time_paused = False
+    target.time_elapsed = 0.0
 
 def FieldBoard_step(target):
     #tl_cell = target.board[0][0]
@@ -403,7 +407,7 @@ def FieldBoard_step(target):
 
     #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
 
-    if not target.timepaused:
+    if not target.time_paused:
         target.time += deltatime
     if target.time > target.timepertick:
         FieldBoard_board_step(target)
@@ -456,6 +460,7 @@ def FieldBoard_draw(target, surface: pygame.Surface):
         else:
             pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, WIDTH, bordersize))
 
+    # speed
     txt = render_font('default', fontsize_default, f'Max speed: {2**target.cameraspeed}', False, 'white')
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2))
@@ -464,11 +469,23 @@ def FieldBoard_draw(target, surface: pygame.Surface):
     surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
                        surface.get_height() - txt.get_height() - 2 - (fontsize_default-2)))
 
+    # time per tick
     txt = render_font('default', fontsize_default,
-                      f'{target.timepertick}s '+('| Paused' if target.timepaused else ''), False, 'white')
-    surface.blit(txt, (int(txt.get_height()*0.25),
-                       surface.get_height() - int(txt.get_height()*1.25)))
+                      f'{target.timepertick}s '+('| Paused' if target.time_paused else ''), False, 'white')
+    surface.blit(txt, (5, -5 + surface.get_height() - fontsize_default))
 
+    # time elapsed
+    clr = 'white' if target.time_elapsed <= target.timepertick else pygame.Color(17*14, 17, 17)
+    txt = render_font('default', fontsize_small,
+                      f'{round(target.time_elapsed, 5)} s',
+                      False, clr)
+    surface.blit(txt, (5, -10 + surface.get_height() - fontsize_default - 2*fontsize_small))
+    txt = render_font('default', fontsize_small,
+                      f'{round(target.time_elapsed / (target.board_width * target.board_height), 5)} s/cell',
+                      False, clr)
+    surface.blit(txt, (5, -10 + surface.get_height() - fontsize_default - fontsize_small))
+
+    # instrument
     if current_instrument['type'] == 'pencil':
         string = f'Pencil[{current_instrument["scale"]}] | {idlist[current_instrument["cell"]]} ' \
                  f'| {"Round" if current_instrument["penciltype"] else "Square"}'
@@ -505,7 +522,7 @@ def FieldBoard_kb_pressed(target, key):
         FieldBoard_center_view(target)
         target.hsp = target.vsp = 0
     elif key == pygame.K_f:
-        target.timepaused = not target.timepaused
+        target.time_paused = not target.time_paused
     elif key == pygame.K_r:
         target.tpt_power = max(target.tpt_min, target.tpt_power-1)
         target.timepertick = target.get_tpt(target.tpt_power)

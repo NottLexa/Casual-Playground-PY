@@ -143,17 +143,37 @@ class Value(ccbt.Value):
         self.value = value
         self.source = source
         self.args = args
+        self.write = lambda nv, lc: None
+        match self.type:
+            case Global.FUNC:
+                if hasattr(self.source, self.value):
+                    self.read = lambda lc: getattr(self.source, self.value)(lc, *self.args)
+                else:
+                    self.read = lambda lc: getattr(self.source, '_' + self.value)(lc, *self.args)
+            case Global.LOCALVAR:
+                self.read = lambda lc: lc.locals[self.value]
+                self.write = lambda nv, lc: lc.locals.__setitem__(self.value, nv)
+            case Global.TECHVAR:
+                self.read = lambda lc: lc.techvars[self.value]
+                self.write = lambda nv, lc: lc.techvars.__setitem__(self.value, nv)
+            case Global.GLOBALVAR:
+                self.read = lambda lc: lc.globals[1][self.value]
+                self.write = lambda nv, lc: lc.globals[1].__setitem__(self.value, nv)
+            case Global.GLOBALTECHVAR:
+                self.read = lambda lc: lc.globals[0][self.value]
+            case Global.FIXEDVAR:
+                self.read = lambda lc: self.value
+    '''# replaced with lambda in __init__
+    
     def read(self, localcell = None):
         if self.source is not None:
             sourcedata = self.source
         else:
             sourcedata = localcell
+        return self.readfrom(localcell)
         match self.type:
             case Global.FUNC:
-                if hasattr(self.source, self.value):
-                    return getattr(self.source, self.value)(localcell, *self.args)
-                else:
-                    return getattr(self.source, '_' + self.value)(localcell, *self.args)
+                return self.myfunc(localcell, *self.args)
             case Global.LOCALVAR:
                 return sourcedata.locals[self.value]
             case Global.TECHVAR:
@@ -175,7 +195,7 @@ class Value(ccbt.Value):
             case Global.TECHVAR:
                 sourcedata.techvars[self.value] = newvalue
             case Global.GLOBALVAR:
-                sourcedata.globals[1][self.value] = newvalue
+                sourcedata.globals[1][self.value] = newvalue'''
     def __repr__(self):
         match self.type:
             case Global.FUNC:
@@ -193,7 +213,7 @@ class Value(ccbt.Value):
                 ret = f'Empty'
             case _:
                 ret = 'None'
-        return f'<Val-{ret}>'
+        return f'<Val:{ret}>'
     def __str__(self):
         match self.type:
             case Global.FUNC:
@@ -210,4 +230,4 @@ class Value(ccbt.Value):
                 ret = f'Empty'
             case _:
                 ret = 'None'
-        return f'<Value-{ret}>'
+        return f'<Value: {ret}>'
