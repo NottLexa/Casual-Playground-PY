@@ -27,7 +27,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #27
+  Alexey Kozhanov                                                                     #28
                                                                                DVLP BUILD
 ''')
 
@@ -123,8 +123,8 @@ global_variables = [{'objdata':{},
                      'board_width':10,
                      'board_height':10},
                     {}]
-idlist = global_variables[0]['idlist']
-objdata = global_variables[0]['objdata']
+idlist: list[str] = global_variables[0]['idlist']
+objdata: dict[str, dict] = global_variables[0]['objdata']
 logger = global_variables[0]['logger']
 fontsize = scale*2
 fontsize_bigger  = int(32*fontsize/scale)
@@ -132,7 +132,6 @@ fontsize_big     = int(24*fontsize/scale)
 fontsize_default = int(16*fontsize/scale)
 fontsize_small   = int(12*fontsize/scale)
 fontsize_smaller = int(8*fontsize/scale)
-fonts = {}
 
 fullgamepath = os.getcwd()
 
@@ -213,28 +212,30 @@ cellbordersize = 0.125
 
 #region [ENTITY]
 #region [GLOBAL CONSOLE]
-def GlobalConsole_create(target):
-    target.logger_i = 0
+class EntGlobalConsole(engine.Entity):
+    @staticmethod
+    def create(target):
+        target.logger_i = 0
 
-def GlobalConsole_step(target):
-    global logger
-    while target.logger_i < len(logger):
-        log = logger[target.logger_i]
-        type_string = LoggerClass.types[log[0]]
-        time_string = timeformat(log[1], 1)
-        prefix = f'[{type_string} {time_string}]' + ' '
-        prefix_l = len(prefix)
-        print(prefix + log[2])
-        for line in log[3:]:
-            print(' '*prefix_l + line)
-        target.logger_i += 1
+    @staticmethod
+    def step(target):
+        global logger
+        while target.logger_i < len(logger):
+            log = logger[target.logger_i]
+            type_string = LoggerClass.types[log[0]]
+            time_string = timeformat(log[1], 1)
+            prefix = f'[{type_string} {time_string}]' + ' '
+            prefix_l = len(prefix)
+            print(prefix + log[2])
+            for line in log[3:]:
+                print(' '*prefix_l + line)
+            target.logger_i += 1
 
-def GlobalConsole_draw_after(target, surface: pygame.Surface):
-    txt = render_font('default', fontsize_default, f'{round(1/deltatime) if deltatime != 0 else 0} FPS', False, 'white')
-    surface.blit(txt, (surface.get_width()-txt.get_width()-8, 8))
-
-EntGlobalConsole = engine.Entity(event_create=GlobalConsole_create, event_step=GlobalConsole_step,
-                                 event_draw_after=GlobalConsole_draw_after)
+    @staticmethod
+    def draw_after(target, surface: pygame.Surface):
+        txt = render_font('default', fontsize_default, f'{round(1/deltatime) if deltatime != 0 else 0} FPS',
+                          False, 'white')
+        surface.blit(txt, (surface.get_width()-txt.get_width()-8, 8))
 #endregion
 #region [FIELD BOARD]
 def FieldBoard_user_draw_board(target):
@@ -325,325 +326,335 @@ def FieldBoard_board_tasks(target):
     if change_board:
         target.surfaces['board'] = FieldBoard_user_draw_board(target)
 
-def FieldBoard_create(target):
-    target.board_width = 32
-    target.board_height = 32
+class EntFieldBoard(engine.Entity):
+    @staticmethod
+    def create(target):
+        target.board_width = 32
+        target.board_height = 32
 
-    global global_variables
-    global_variables[0]['board_width'] = target.board_width
-    global_variables[0]['board_height'] = target.board_height
+        global global_variables
+        global_variables[0]['board_width'] = target.board_width
+        global_variables[0]['board_height'] = target.board_height
 
-    target.viewscale = 16
-    FieldBoard_center_view(target)
-
-    target.keys = {'up': False,
-                   'left': False,
-                   'right': False,
-                   'down': False,
-                   'speedup':False,
-                   'speeddown':False,
-                   'rmb':False,
-                   'plus':False,
-                   'minus':False,}
-
-    target.cameraspeed = round(math.log2((2**9)*scale/100)) #round(9*scale/100)
-    target.mincamspeed = round(math.log2((2**6)*scale/100)) #round(6*scale/100)
-    target.maxcamspeed = round(math.log2((2**14)*scale/100)) #round(14*scale/100)
-    target.hsp = 0
-    target.vsp = 0
-    target.acceleration = 8
-    target.zoomspeed = 1
-
-    target.linecolor_infield = 'gray10'
-    target.linecolor_outfield = 'gray40'
-
-    target.board = []
-    for y in range(target.board_height):
-        target.board.append([])
-        for x in range(target.board_width):
-            celldata = comp.Cell({'X': x, 'Y': y}, idlist.index('grass'), target.board, global_variables)
-            target.board[-1].append(celldata)
-
-    target.surfaces = {'board': FieldBoard_user_draw_board(target)}
-
-    target.time = 0.0
-    target.tpt_power = 28
-    target.get_tpt = lambda n: ((10**(n//9))*(n%9) if n%9 != 0 else 10**((n//9)-1)*9) / 1000
-    target.tpt_min, target.tpt_max = 1, 60
-    target.timepertick = 1.0
-    target.time_paused = False
-    target.time_elapsed = 0.0
-
-def FieldBoard_step(target):
-    #tl_cell = target.board[0][0]
-    #print(tl_cell.locals, tl_cell.tasks)
-
-    if target.keys['plus']:
-        FieldBoard_zoom_in(target, target.zoomspeed*deltatime)
-    if target.keys['minus']:
-        FieldBoard_zoom_out(target, target.zoomspeed*deltatime)
-
-    limitspeed = 2**target.cameraspeed
-    acc = limitspeed*target.acceleration
-
-    hmov = target.keys['right'] - target.keys['left']
-    vmov = target.keys['down'] - target.keys['up']
-
-    if hmov != 0:
-        target.hsp = engine.clamp(target.hsp + deltatime*acc*hmov, -limitspeed, limitspeed)
-    else:
-        target.hsp = engine.clamp(target.hsp - deltatime*engine.sign(target.hsp)*acc,
-                                  min(target.hsp, 0), max(0, target.hsp))
-    if vmov != 0:
-        target.vsp = engine.clamp(target.vsp + deltatime*acc*vmov, -limitspeed, limitspeed)
-    else:
-        target.vsp = engine.clamp(target.vsp - deltatime*engine.sign(target.vsp)*acc,
-                                  min(target.vsp, 0), max(0, target.vsp))
-
-    target.viewx += deltatime * target.hsp
-    target.viewy += deltatime * target.vsp
-
-    FieldBoard_do_instrument(target)
-
-    #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
-
-    if not target.time_paused:
-        target.time += deltatime
-    if target.time > target.timepertick:
-        FieldBoard_board_step(target)
-        # target.time = 0 # moved to FieldBoard_after_step
-
-def FieldBoard_step_after(target):
-    if target.time > target.timepertick:
-        FieldBoard_board_tasks(target)
-        target.time = 0
-
-def FieldBoard_draw(target, surface: pygame.Surface):
-    bordersize = round(target.viewscale*cellbordersize)
-    cellsize = target.viewscale+bordersize
-    ox = -target.viewx%cellsize
-    oy = -target.viewy%cellsize
-    lx = math.ceil(WIDTH/cellsize)
-    ly = math.ceil(HEIGHT/cellsize)
-
-    if target.viewx > 0:
-        realx = -target.viewx-1
-    else:
-        realx = -target.viewx
-    if target.viewy > 0:
-        realy = -target.viewy-1
-    else:
-        realy = -target.viewy
-    surface.blit(target.surfaces['board'], (realx, realy))
-
-    for ix in range(-1, lx):
-        linex = ox+(ix*cellsize)
-        starty = engine.clamp(0, -target.viewy, -target.viewy+(cellsize*target.board_height))
-        endy = engine.clamp(HEIGHT, -target.viewy, -target.viewy+(cellsize*target.board_height))
-        if not (linex+target.viewx < 0 or linex+target.viewx > (cellsize*target.board_width)): # в пределах поля
-            if (starty-2 > 0):
-                pygame.draw.rect(surface, target.linecolor_outfield, (linex, 0, bordersize, starty))
-            if (HEIGHT > endy):
-                pygame.draw.rect(surface, target.linecolor_outfield, (linex, endy+bordersize, bordersize, HEIGHT-endy))
-        else:
-            pygame.draw.rect(surface, target.linecolor_outfield, (linex, 0, bordersize, HEIGHT))
-
-    for iy in range(-1, ly):
-        liney = oy+(iy*cellsize)
-        startx = engine.clamp(0, -target.viewx, -target.viewx+(cellsize*target.board_width))
-        endx = engine.clamp(WIDTH, -target.viewx, -target.viewx+(cellsize*target.board_width))
-        if not (liney+target.viewy < 0 or liney+target.viewy > (cellsize*target.board_height)): # в пределах поля
-            if (startx-2 > 0):
-                pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, startx, bordersize))
-            if (WIDTH > endx):
-                pygame.draw.rect(surface, target.linecolor_outfield, (endx+bordersize, liney, WIDTH-endx, bordersize))
-        else:
-            pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, WIDTH, bordersize))
-
-    # speed
-    txt = render_font('default', fontsize_default, f'Max speed: {2**target.cameraspeed}', False, 'white')
-    surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
-                       surface.get_height() - txt.get_height() - 2))
-    txt = render_font('default', fontsize_default, f'hsp: {round(target.hsp)} / vsp: {round(target.vsp)}',
-                      False, 'white')
-    surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
-                       surface.get_height() - txt.get_height() - 2 - (fontsize_default-2)))
-
-    # time per tick
-    txt = render_font('default', fontsize_default,
-                      f'{target.timepertick}s '+('| Paused' if target.time_paused else ''), False, 'white')
-    surface.blit(txt, (5, -5 + surface.get_height() - fontsize_default))
-
-    # time elapsed
-    clr = 'white' if target.time_elapsed <= target.timepertick else pygame.Color(17*14, 17, 17)
-    txt = render_font('default', fontsize_small,
-                      f'{round(target.time_elapsed, 5)} s',
-                      False, clr)
-    surface.blit(txt, (5, -10 + surface.get_height() - fontsize_default - 2*fontsize_small))
-    txt = render_font('default', fontsize_small,
-                      f'{round(target.time_elapsed / (target.board_width * target.board_height), 5)} s/cell',
-                      False, clr)
-    surface.blit(txt, (5, -10 + surface.get_height() - fontsize_default - fontsize_small))
-
-    # instrument
-    if current_instrument['type'] == 'pencil':
-        string = f'Pencil[{current_instrument["scale"]}] | {idlist[current_instrument["cell"]]} ' \
-                 f'| {"Round" if current_instrument["penciltype"] else "Square"}'
-        txt = render_font('default', fontsize_default, string, False, 'white')
-
-        surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
-                           surface.get_height() - txt.get_height() - 2 - 2*(fontsize_default-2)))
-
-    #for ix in range(0, WIDTH, 16+1):
-    #    for iy in range(0, HEIGHT, 16+1):
-    #        surface.set_at((int(-target.viewx%cellsize)+ix, int(-target.viewy%cellsize)+iy), 'red')
-
-    #surface.set_at((int(-target.viewx), int(-target.viewy)), 'aqua')
-
-def FieldBoard_kb_pressed(target, key):
-    setkey = True
-    if key in (pygame.K_UP, pygame.K_w):
-        target.keys['up'] = setkey
-    elif key in (pygame.K_LEFT, pygame.K_a):
-        target.keys['left'] = setkey
-    elif key in (pygame.K_RIGHT, pygame.K_d):
-        target.keys['right'] = setkey
-    elif key in (pygame.K_DOWN, pygame.K_s):
-        target.keys['down'] = setkey
-    elif key == pygame.K_EQUALS:
-        target.keys['plus'] = setkey
-    elif key == pygame.K_MINUS:
-        target.keys['minus'] = setkey
-    elif key == pygame.K_q:
-        target.cameraspeed = engine.clamp(target.cameraspeed-1, target.mincamspeed, target.maxcamspeed)
-    elif key == pygame.K_e:
-        target.cameraspeed = engine.clamp(target.cameraspeed+1, target.mincamspeed, target.maxcamspeed)
-    elif key == pygame.K_c:
+        target.viewscale = 16
         FieldBoard_center_view(target)
-        target.hsp = target.vsp = 0
-    elif key == pygame.K_f:
-        target.time_paused = not target.time_paused
-    elif key == pygame.K_r:
-        target.tpt_power = max(target.tpt_min, target.tpt_power-1)
-        target.timepertick = target.get_tpt(target.tpt_power)
-    elif key == pygame.K_t:
-        target.tpt_power = min(target.tpt_max, target.tpt_power+1)
-        target.timepertick = target.get_tpt(target.tpt_power)
 
-def FieldBoard_kb_released(target, key):
-    setkey = False
-    if key in (pygame.K_UP, pygame.K_w):
-        target.keys['up'] = setkey
-    elif key in (pygame.K_LEFT, pygame.K_a):
-        target.keys['left'] = setkey
-    elif key in (pygame.K_RIGHT, pygame.K_d):
-        target.keys['right'] = setkey
-    elif key in (pygame.K_DOWN, pygame.K_s):
-        target.keys['down'] = setkey
-    elif key == pygame.K_EQUALS:
-        target.keys['plus'] = setkey
-    elif key == pygame.K_MINUS:
-        target.keys['minus'] = setkey
+        target.keys = {'up': False,
+                       'left': False,
+                       'right': False,
+                       'down': False,
+                       'speedup':False,
+                       'speeddown':False,
+                       'rmb':False,
+                       'plus':False,
+                       'minus':False,}
 
-def FieldBoard_mouse_pressed(target, mousepos, buttonid):
-    global current_instrument
-    setkey = True
-    if buttonid == 3: # Use instrument
-        target.keys['rmb'] = setkey
-    elif buttonid == 4: # Scroll up
-        if pygame.key.get_mods() & pygame.KMOD_SHIFT: current_instrument['scale'] += 1
-        else: FieldBoard_zoom_in(target, 1)
-    elif buttonid == 5: # Scroll down
-        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            current_instrument['scale'] = max(current_instrument['scale']-1, 1)
-        else: FieldBoard_zoom_out(target, 1)
+        target.cameraspeed = round(math.log2((2**9)*scale/100)) #round(9*scale/100)
+        target.mincamspeed = round(math.log2((2**6)*scale/100)) #round(6*scale/100)
+        target.maxcamspeed = round(math.log2((2**14)*scale/100)) #round(14*scale/100)
+        target.hsp = 0
+        target.vsp = 0
+        target.acceleration = 8
+        target.zoomspeed = 1
 
-def FieldBoard_mouse_released(target, mousepos, buttonid):
-    setkey = False
-    if buttonid == 3:  # Use instrument
-        target.keys['rmb'] = setkey
+        target.linecolor_infield = 'gray10'
+        target.linecolor_outfield = 'gray40'
 
-EntFieldBoard = engine.Entity(event_create=FieldBoard_create, event_step=FieldBoard_step,
-                              event_step_after=FieldBoard_step_after, event_draw=FieldBoard_draw,
-                              event_kb_pressed=FieldBoard_kb_pressed, event_kb_released=FieldBoard_kb_released,
-                              event_mouse_pressed=FieldBoard_mouse_pressed,
-                              event_mouse_released=FieldBoard_mouse_released)
+        target.board = []
+        for y in range(target.board_height):
+            target.board.append([])
+            for x in range(target.board_width):
+                celldata = comp.Cell({'X': x, 'Y': y}, idlist.index('grass'), target.board, global_variables)
+                target.board[-1].append(celldata)
+
+        target.surfaces = {'board': FieldBoard_user_draw_board(target)}
+
+        target.time = 0.0
+        target.tpt_power = 28
+        target.get_tpt = lambda n: ((10**(n//9))*(n%9) if n%9 != 0 else 10**((n//9)-1)*9) / 1000
+        target.tpt_min, target.tpt_max = 1, 60
+        target.timepertick = 1.0
+        target.time_paused = False
+        target.time_elapsed = 0.0
+    @staticmethod
+    def step(target):
+        #tl_cell = target.board[0][0]
+        #print(tl_cell.locals, tl_cell.tasks)
+
+        if target.keys['plus']:
+            FieldBoard_zoom_in(target, target.zoomspeed*deltatime)
+        if target.keys['minus']:
+            FieldBoard_zoom_out(target, target.zoomspeed*deltatime)
+
+        limitspeed = 2**target.cameraspeed
+        acc = limitspeed*target.acceleration
+
+        hmov = target.keys['right'] - target.keys['left']
+        vmov = target.keys['down'] - target.keys['up']
+
+        if hmov != 0:
+            target.hsp = engine.clamp(target.hsp + deltatime*acc*hmov, -limitspeed, limitspeed)
+        else:
+            target.hsp = engine.clamp(target.hsp - deltatime*engine.sign(target.hsp)*acc,
+                                      min(target.hsp, 0), max(0, target.hsp))
+        if vmov != 0:
+            target.vsp = engine.clamp(target.vsp + deltatime*acc*vmov, -limitspeed, limitspeed)
+        else:
+            target.vsp = engine.clamp(target.vsp - deltatime*engine.sign(target.vsp)*acc,
+                                      min(target.vsp, 0), max(0, target.vsp))
+
+        target.viewx += deltatime * target.hsp
+        target.viewy += deltatime * target.vsp
+
+        FieldBoard_do_instrument(target)
+
+        #target.cameraspeed = engine.clamp(target.cameraspeed + 2*(target.keys['speedup']-target.keys['speeddown']), 0, 10)
+
+        if not target.time_paused:
+            target.time += deltatime
+        if target.time > target.timepertick:
+            FieldBoard_board_step(target)
+            # target.time = 0 # moved to FieldBoard_after_step
+
+    @staticmethod
+    def step_after(target):
+        if target.time > target.timepertick:
+            FieldBoard_board_tasks(target)
+            target.time = 0
+
+    @staticmethod
+    def draw(target, surface: pygame.Surface):
+        bordersize = round(target.viewscale*cellbordersize)
+        cellsize = target.viewscale+bordersize
+        ox = -target.viewx%cellsize
+        oy = -target.viewy%cellsize
+        lx = math.ceil(WIDTH/cellsize)
+        ly = math.ceil(HEIGHT/cellsize)
+
+        if target.viewx > 0:
+            realx = -target.viewx-1
+        else:
+            realx = -target.viewx
+        if target.viewy > 0:
+            realy = -target.viewy-1
+        else:
+            realy = -target.viewy
+        surface.blit(target.surfaces['board'], (realx, realy))
+
+        for ix in range(-1, lx):
+            linex = ox+(ix*cellsize)
+            starty = engine.clamp(0, -target.viewy, -target.viewy+(cellsize*target.board_height))
+            endy = engine.clamp(HEIGHT, -target.viewy, -target.viewy+(cellsize*target.board_height))
+            if not (linex+target.viewx < 0 or linex+target.viewx > (cellsize*target.board_width)): # в пределах поля
+                if (starty-2 > 0):
+                    pygame.draw.rect(surface, target.linecolor_outfield, (linex, 0, bordersize, starty))
+                if (HEIGHT > endy):
+                    pygame.draw.rect(surface, target.linecolor_outfield, (linex, endy+bordersize, bordersize, HEIGHT-endy))
+            else:
+                pygame.draw.rect(surface, target.linecolor_outfield, (linex, 0, bordersize, HEIGHT))
+
+        for iy in range(-1, ly):
+            liney = oy+(iy*cellsize)
+            startx = engine.clamp(0, -target.viewx, -target.viewx+(cellsize*target.board_width))
+            endx = engine.clamp(WIDTH, -target.viewx, -target.viewx+(cellsize*target.board_width))
+            if not (liney+target.viewy < 0 or liney+target.viewy > (cellsize*target.board_height)): # в пределах поля
+                if (startx-2 > 0):
+                    pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, startx, bordersize))
+                if (WIDTH > endx):
+                    pygame.draw.rect(surface, target.linecolor_outfield, (endx+bordersize, liney, WIDTH-endx, bordersize))
+            else:
+                pygame.draw.rect(surface, target.linecolor_outfield, (0, liney, WIDTH, bordersize))
+
+        # speed
+        txt = render_font('default', fontsize_default, f'Max speed: {2**target.cameraspeed}', False, 'white')
+        surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
+                           surface.get_height() - txt.get_height() - 2))
+        txt = render_font('default', fontsize_default, f'hsp: {round(target.hsp)} / vsp: {round(target.vsp)}',
+                          False, 'white')
+        surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
+                           surface.get_height() - txt.get_height() - 2 - (fontsize_default-2)))
+
+        # time per tick
+        txt = render_font('default', fontsize_default,
+                          f'{target.timepertick}s '+('| Paused' if target.time_paused else ''), False, 'white')
+        surface.blit(txt, (5, -5 + surface.get_height() - fontsize_default))
+
+        # time elapsed
+        clr = 'white' if target.time_elapsed <= target.timepertick else pygame.Color(17*14, 17, 17)
+        txt = render_font('default', fontsize_small,
+                          f'{round(target.time_elapsed, 5)} s',
+                          False, clr)
+        surface.blit(txt, (5, -10 + surface.get_height() - fontsize_default - 2*fontsize_small))
+        txt = render_font('default', fontsize_small,
+                          f'{round(target.time_elapsed / (target.board_width * target.board_height), 5)} s/cell',
+                          False, clr)
+        surface.blit(txt, (5, -10 + surface.get_height() - fontsize_default - fontsize_small))
+
+        # instrument
+        if current_instrument['type'] == 'pencil':
+            string = f'Pencil[{current_instrument["scale"]}] | {idlist[current_instrument["cell"]]} ' \
+                     f'| {"Round" if current_instrument["penciltype"] else "Square"}'
+            txt = render_font('default', fontsize_default, string, False, 'white')
+
+            surface.blit(txt, (surface.get_width() - txt.get_width() - 2,
+                               surface.get_height() - txt.get_height() - 2 - 2*(fontsize_default-2)))
+
+        #for ix in range(0, WIDTH, 16+1):
+        #    for iy in range(0, HEIGHT, 16+1):
+        #        surface.set_at((int(-target.viewx%cellsize)+ix, int(-target.viewy%cellsize)+iy), 'red')
+
+        #surface.set_at((int(-target.viewx), int(-target.viewy)), 'aqua')
+
+    @staticmethod
+    def keyboard_down(target, key: int):
+        setkey = True
+        if key in (pygame.K_UP, pygame.K_w):
+            target.keys['up'] = setkey
+        elif key in (pygame.K_LEFT, pygame.K_a):
+            target.keys['left'] = setkey
+        elif key in (pygame.K_RIGHT, pygame.K_d):
+            target.keys['right'] = setkey
+        elif key in (pygame.K_DOWN, pygame.K_s):
+            target.keys['down'] = setkey
+        elif key == pygame.K_EQUALS:
+            target.keys['plus'] = setkey
+        elif key == pygame.K_MINUS:
+            target.keys['minus'] = setkey
+        elif key == pygame.K_q:
+            target.cameraspeed = engine.clamp(target.cameraspeed-1, target.mincamspeed, target.maxcamspeed)
+        elif key == pygame.K_e:
+            target.cameraspeed = engine.clamp(target.cameraspeed+1, target.mincamspeed, target.maxcamspeed)
+        elif key == pygame.K_c:
+            FieldBoard_center_view(target)
+            target.hsp = target.vsp = 0
+        elif key == pygame.K_f:
+            target.time_paused = not target.time_paused
+        elif key == pygame.K_r:
+            target.tpt_power = max(target.tpt_min, target.tpt_power-1)
+            target.timepertick = target.get_tpt(target.tpt_power)
+        elif key == pygame.K_t:
+            target.tpt_power = min(target.tpt_max, target.tpt_power+1)
+            target.timepertick = target.get_tpt(target.tpt_power)
+
+    @staticmethod
+    def keyboard_up(target, key: int):
+        setkey = False
+        if key in (pygame.K_UP, pygame.K_w):
+            target.keys['up'] = setkey
+        elif key in (pygame.K_LEFT, pygame.K_a):
+            target.keys['left'] = setkey
+        elif key in (pygame.K_RIGHT, pygame.K_d):
+            target.keys['right'] = setkey
+        elif key in (pygame.K_DOWN, pygame.K_s):
+            target.keys['down'] = setkey
+        elif key == pygame.K_EQUALS:
+            target.keys['plus'] = setkey
+        elif key == pygame.K_MINUS:
+            target.keys['minus'] = setkey
+
+    @staticmethod
+    def mouse_down(target, mousepos: tuple[int, int], buttonid: int):
+        global current_instrument
+        setkey = True
+        if buttonid == 3: # Use instrument
+            target.keys['rmb'] = setkey
+        elif buttonid == 4: # Scroll up
+            if pygame.key.get_mods() & pygame.KMOD_SHIFT: current_instrument['scale'] += 1
+            else: FieldBoard_zoom_in(target, 1)
+        elif buttonid == 5: # Scroll down
+            if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                current_instrument['scale'] = max(current_instrument['scale']-1, 1)
+            else: FieldBoard_zoom_out(target, 1)
+
+    @staticmethod
+    def mouse_up(target, mousepos: tuple[int, int], buttonid: int):
+        setkey = False
+        if buttonid == 3:  # Use instrument
+            target.keys['rmb'] = setkey
 #endregion
 #region [FIELD STANDARD UI]
-def FieldSUI_create(target):
-    target.show_step = 0.0
-    target.show_menu = False
-    target.show_all = True
-    target.cellmenu_width = 512*scale/100
-    target.window_spacing = 8*scale/100
-    target.display_scale = 80*scale/100
-    target.element_border = target.display_scale/4
+def FieldSUI_draw_description_window(cellid: int):
+    cellname = idlist[cellid]
+    padding = 4*scale/100
 
-def FieldSUI_step(target):
-    target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
+    name = render_font('default', fontsize_default, objdata[cellname]['name'], False, 'white')
 
-    if round(target.show_step, 5) == 0:
-        target.show_step = 0
-    elif round(target.show_step, 5) == 1:
-        target.show_step = 1
+    surface = pygame.Surface((), pygame.SRCALPHA)
 
-def FieldSUI_draw(target, surface: pygame.Surface):
-    if target.show_all:
-        ds = target.display_scale
-        eb = target.element_border
-        ws = target.window_spacing
+    return surface
 
-        measure = int(target.cellmenu_width*1.5)
-        phase_offset = int(measure*target.show_step)-measure
+class EntFieldSUI(engine.Entity):
+    @staticmethod
+    def create(target):
+        target.show_step = 0.0
+        target.show_menu = False
+        target.show_all = True
+        target.cellmenu_width = 512*scale/100
+        target.window_spacing = 8*scale/100
+        target.display_scale = 80*scale/100
+        target.element_border = target.display_scale/4
 
-        alphabg = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        pygame.draw.rect(alphabg, 'gray10', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 0, 5)
-        pygame.draw.rect(alphabg, 'gray50', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 1, 5)
+    @staticmethod
+    def step(target):
+        target.show_step = engine.interpolate(target.show_step, int(target.show_menu), 3, 0)
 
-        alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
+        if round(target.show_step, 5) == 0:
+            target.show_step = 0
+        elif round(target.show_step, 5) == 1:
+            target.show_step = 1
 
-        surface.blit(alphabg, (0, 0))
-        inoneline = (target.cellmenu_width-ws)//(ds+eb)
-        ci = -1
-        for o in idlist:
-            obj = objdata[o]
-            if obj['type'] == 'CELL':
-                ci += 1
-                cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
-                pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, ds, ds))
-                txt = render_font('default', fontsize_smaller, cut_string(obj['name'], 9), True, 'white')
-                surface.blit(txt, (cx+(ds/2)+phase_offset-(txt.get_width()//2), cy+ds+(eb/2)))
+    @staticmethod
+    def draw(target, surface: pygame.Surface):
+        if target.show_all:
+            ds = target.display_scale
+            eb = target.element_border
+            ws = target.window_spacing
 
-def FieldSUI_kb_pressed(target, key):
-    if key == pygame.K_TAB:
-        if pygame.key.get_mods() & pygame.KMOD_CTRL:
-            target.show_all = not target.show_all
-        else:
-            target.show_menu = not target.show_menu
+            measure = int(target.cellmenu_width*1.5)
+            phase_offset = int(measure*target.show_step)-measure
 
-def FieldSUI_kb_released(target, key):
-    pass
+            alphabg = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+            pygame.draw.rect(alphabg, 'gray10', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 0, 5)
+            pygame.draw.rect(alphabg, 'gray50', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 1, 5)
 
-def FieldSUI_mouse_pressed(target, mousepos, buttonid):
-    if target.show_all:
-        ds = target.display_scale
-        eb = target.element_border
-        ws = target.window_spacing
-        global current_instrument
-        if buttonid == 1:
-            phase_offset = int(200 * target.show_step) - 200
+            alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
+
+            surface.blit(alphabg, (0, 0))
             inoneline = (target.cellmenu_width-ws)//(ds+eb)
-            mx, my = mousepos
-            detectwidth, detectheight = ds+eb, ds+fontsize_smaller+(1.5*eb)
-            ci = (mx-eb)//detectwidth + ((my-eb)//detectheight)*inoneline
-            cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
-            if (cx <= mx <= cx+detectwidth-eb) and (cy <= my <= cy+detectheight-eb):
-                current_instrument = {'type': 'pencil', 'cell': int(ci), 'penciltype': False, 'scale': 1}
+            ci = -1
+            for o in idlist:
+                obj = objdata[o]
+                if obj['type'] == 'CELL':
+                    ci += 1
+                    cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
+                    pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, ds, ds))
+                    txt = render_font('default', fontsize_smaller, cut_string(obj['name'], 9), True, 'white')
+                    surface.blit(txt, (cx+(ds/2)+phase_offset-(txt.get_width()//2), cy+ds+(eb/2)))
 
+    @staticmethod
+    def keyboard_down(target, key: int):
+        if key == pygame.K_TAB:
+            if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                target.show_all = not target.show_all
+            else:
+                target.show_menu = not target.show_menu
 
-EntFieldSUI = engine.Entity(event_create=FieldSUI_create, event_step=FieldSUI_step, event_draw=FieldSUI_draw,
-                            event_kb_pressed=FieldSUI_kb_pressed, event_kb_released=FieldSUI_kb_released,
-                            event_mouse_pressed=FieldSUI_mouse_pressed)
+    @staticmethod
+    def mouse_down(target, mousepos: tuple[int, int], buttonid: int):
+        if target.show_all:
+            ds = target.display_scale
+            eb = target.element_border
+            ws = target.window_spacing
+            global current_instrument
+            if buttonid == 1:
+                phase_offset = int(200 * target.show_step) - 200
+                inoneline = (target.cellmenu_width-ws)//(ds+eb)
+                mx, my = mousepos
+                detectwidth, detectheight = ds+eb, ds+fontsize_smaller+(1.5*eb)
+                ci = (mx-eb)//detectwidth + ((my-eb)//detectheight)*inoneline
+                cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
+                if (cx <= mx <= cx+detectwidth-eb) and (cy <= my <= cy+detectheight-eb):
+                    current_instrument = {'type': 'pencil', 'cell': int(ci), 'penciltype': False, 'scale': 1}
 #endregion
 #endregion
 

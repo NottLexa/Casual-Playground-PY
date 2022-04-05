@@ -1,21 +1,14 @@
 '''
 NLE1 (NotLexaEngine 1) for Python 3.10+, Pygame 2.1+
-Version: 1.2.0
+Version: 2.0.0
 License: CC BY-NC-SA 4.0
 
-пожалуйста не спрашивайте почему я использовал этот скрипт а не напрямую pygame для Casual Playground.
-это мой старый скрипт который я создал давно чтобы скопировать структуру проектов в GameMaker Studio 2.
-мне с этим просто проще работать. в нем кстати есть ещё несколько полезных математических функций и класс Screen
-который упрощает работу с pygame.display.
+Version 2.0.0 replaced Entity as set of unlinked methods to Entity as metaclass and class for inheritance
 
-pls don't ask why I used this script and not pygame directly for Casual Playground.
-it's my old script that I created long ago to copy GameMaker Studio 2 projects' structure.
-it's just easier for me to work with. It also contains few useful math features and Screen class that simplifies
-work with pygame.display.
+Версия 2.0.0 заменила Entity как набор несвязанных методов на Entity как метакласс и класс для наследования
 '''
 
 import os
-import typing
 import math
 import pygame
 
@@ -33,7 +26,7 @@ def lengthdir_y(len, dir):
     return len * -math.sin(math.radians(dir))
 
 
-def interpolate(x, y, power: int = 1, side: typing.Union[int, bool] = 0):
+def interpolate(x, y, power: int = 1, side: int | bool = 0):
     '''Функция интерполяции.
        Или же поиска значения между x и y, при power = 1 равного средне-арифмитическому,
        но при power > 1 значение будет отступать от средне-арифметического пропорционально значению power
@@ -136,7 +129,7 @@ def pygame_videoinfo():
        Работает только после вызова pygame.init().'''
     return pygame.display.Info()
 
-def get_screensize(videoinfo) -> typing.Tuple[int, int]:
+def get_screensize(videoinfo) -> tuple[int, int]:
     '''Получить размер экрана формата (Ширина, Высота).
        В качестве аргумента нужно вставить _VidInfo, получаемый командой pygame.display.Info().
        pygame.display.Info() также можно получить командой pygame_videoinfo().'''
@@ -150,123 +143,114 @@ def load_image(path):
     return img
 
 
-class Entity:
-    '''Класс для наследования классов для создания внутреигровых одинаковых, но уникальных объектов.
+class MetaEntity(type):
+    def __new__(cls, clsname, sup, attr):
+        attr = attr.copy()
+        attr['instances'] = list()
+        return super(MetaEntity, cls).__new__(cls, clsname, sup, attr)
+
+class Entity(metaclass=MetaEntity):
+    '''Класс для создания классов для создания внутреигровых одинаковых, но уникальных объектов.
        Главная способность классов, наследовавших Entity - создавание объектов Instance.
 
        ВСЕ СОБЫТИЯ (в порядке их выполнения):
-       event_create - событие, выполняемое сразу же после создания. Не выполняется повторно.
+       create(target: Instance) - событие, выполняемое сразу же после создания. Не выполняется повторно.
 
-       event_step_before - событие, выполняемое каждый игровой кадр, но до event_step всех Instance.
-       event_step - событие, выполняемое каждый игровой кадр.
-       event_step_after - событие, выполняемое каждый игровой кадр, но после event_step всех Instance.
+       step_before(target: Instance) - событие, выполняемое каждый игровой кадр, но до event_step всех Instance.
+       step(target: Instance)        - событие, выполняемое каждый игровой кадр.
+       step_after(target: Instance)  - событие, выполняемое каждый игровой кадр, но после event_step всех Instance.
 
-       event_draw_before - событие, выполняемое каждый игровой кадр, но до event_draw всех Instance.
-       event_draw - событие, выполняемое каждый игровой кадр.
-       event_draw_after - событие, выполняемое каждый игровой кадр, но после event_draw всех Instance.'''
-    def __init__(self, event_create = None,
-                       event_step = None, event_step_before = None, event_step_after = None,
-                       event_draw = None, event_draw_before = None, event_draw_after = None,
-                       event_room_start = None, event_room_end = None,
-                       event_mouse_moved = None,
-                       event_mouse_pressed = None, event_mouse_released = None,
-                       event_kb_pressed = None, event_kb_released = None):
-        self.instances: typing.List[Instance] = []
+       draw_before(target: Instance, surface: pygame.Surface) - событие, выполняемое каждый игровой кадр,
+                                                                но до event_draw всех Instance.
+       draw(target: Instance, surface: pygame.Surface)        - событие, выполняемое каждый игровой кадр.
+       draw_after(target: Instance, surface: pygame.Surface)  - событие, выполняемое каждый игровой кадр,
+                                                                но после event_draw всех Instance.
 
-        self.event_create = event_create
-        self.event_step = event_step
-        self.event_step_before = event_step_before
-        self.event_step_after = event_step_after
-        self.event_draw = event_draw
-        self.event_draw_before = event_draw_before
-        self.event_draw_after = event_draw_after
-        self.event_room_start = event_room_start
-        self.event_room_end = event_room_end
-        self.event_mouse_moved = event_mouse_moved
-        self.event_mouse_pressed = event_mouse_pressed
-        self.event_mouse_released = event_mouse_released
-        self.event_kb_pressed = event_kb_pressed
-        self.event_kb_released = event_kb_released
+       mouse_move(target: Instance, mousepos: tuple[int, int])                 - событие, выполняемое при перемещении
+                                                                                 мыши
+       mouse_down(target: Instance, mousepos: tuple[int, int], button_id: int) - событие, выполняемое при нажатии на
+                                                                                 кнопку мыши
+       mouse_up(target: Instance, mousepos: tuple[int, int], button_id: int)   - событие, выполняемое при отпускании
+                                                                                 кнопки мыши
 
-    def instance(self):
+       keyboard_down(target: Instance, key: int) - событие, выполняемое при нажатии клавиши
+       keyboard_up(target: Instance, key: int)   - событие, выполняемое при отпускании клавиши
+    '''
+
+    @staticmethod
+    def create(target):
+        pass
+
+    @staticmethod
+    def step_before(target):
+        pass
+
+    @staticmethod
+    def step(target):
+        pass
+
+    @staticmethod
+    def step_after(target):
+        pass
+
+    @staticmethod
+    def draw_before(target, surface: pygame.Surface):
+        pass
+
+    @staticmethod
+    def draw(target, surface: pygame.Surface):
+        pass
+
+    @staticmethod
+    def draw_after(target, surface: pygame.Surface):
+        pass
+
+    @staticmethod
+    def mouse_move(target, mousepos: tuple[int, int]):
+        pass
+
+    @staticmethod
+    def mouse_down(target, mousepos: tuple[int, int], button_id: int):
+        pass
+
+    @staticmethod
+    def mouse_up(target, mousepos: tuple[int, int], button_id: int):
+        pass
+
+    @staticmethod
+    def keyboard_down(target, key: int):
+        pass
+
+    @staticmethod
+    def keyboard_up(target, key: int):
+        pass
+
+    @staticmethod
+    def room_start(target, room):
+        pass
+
+    @staticmethod
+    def room_end(target, room):
+        pass
+
+    @classmethod
+    def instance(cls):
         '''Создает новый Instance данного Entity, перенимающий с него все события.
 
         В качестве **specific (kw_args) можно задать специфические значения переменных, заданных в event_create.'''
-        new_instance = Instance(entity = self)
-        self.instances.append(new_instance)
+        new_instance = Instance(entity = cls)
+        cls.instances.append(new_instance)
         return new_instance
+
+    @classmethod
+    def destroy_instance(cls, ins):
+        del cls.instances[cls.instances.index(ins)]
 
 
 class Instance:
     def __init__(self, entity: Entity):
         self.entity = entity
-        if self.entity.event_create is not None:
-            self.entity.event_create(self)
-
-    def do_step(self):
-        '''Выполнение шага'''
-        if self.entity.event_step is not None:
-            self.entity.event_step(self)
-
-    def do_step_before(self):
-        '''Выполнение до-шага'''
-        if self.entity.event_step_before is not None:
-            self.entity.event_step_before(self)
-
-    def do_step_after(self):
-        '''Выполнение после-шага'''
-        if self.entity.event_step_after is not None:
-            self.entity.event_step_after(self)
-
-    def do_draw(self, surface):
-        '''Отрисовка'''
-        if self.entity.event_draw is not None:
-            self.entity.event_draw(self, surface)
-
-    def do_draw_before(self, surface):
-        '''До-отрисовка'''
-        if self.entity.event_draw_before is not None:
-            self.entity.event_draw_before(self, surface)
-
-    def do_draw_after(self, surface):
-        '''После-отрисовка'''
-        if self.entity.event_draw_after is not None:
-            self.entity.event_draw_after(self, surface)
-
-    def do_room_start(self):
-        '''Вход в комнату'''
-        if self.entity.event_room_start is not None:
-            self.entity.event_room_start(self)
-
-    def do_room_end(self):
-        '''Выход из комнаты'''
-        if self.entity.event_room_end is not None:
-            self.entity.event_room_end(self)
-
-    def do_mouse_moved(self, mousepos):
-        '''Движение мыши'''
-        if self.entity.event_mouse_moved is not None:
-            self.entity.event_mouse_moved(self, mousepos)
-
-    def do_mouse_pressed(self, mousepos, buttonid):
-        '''Нажатие кнопки мыши'''
-        if self.entity.event_mouse_pressed is not None:
-            self.entity.event_mouse_pressed(self, mousepos, buttonid)
-
-    def do_mouse_released(self, mousepos, buttonid):
-        '''Отпускание кнопки мыши'''
-        if self.entity.event_mouse_released is not None:
-            self.entity.event_mouse_released(self, mousepos, buttonid)
-
-    def do_kb_pressed(self, buttonid):
-        '''Нажатие кнопки мыши'''
-        if self.entity.event_kb_pressed is not None:
-            self.entity.event_kb_pressed(self, buttonid)
-
-    def do_kb_released(self, buttonid):
-        '''Отпускание кнопки мыши'''
-        if self.entity.event_kb_released is not None:
-            self.entity.event_kb_released(self, buttonid)
+        self.entity.create(self)
 
 
 class Room:
@@ -274,60 +258,60 @@ class Room:
        На вход принимает список объектов Entity, Instance которых будут выполнять ежекадровые события
        при вызове метода do_step() или одиночные события event_room_stand и event_room_end при вызове
        методов start() и end() соответственно.'''
-    def __init__(self, entities: typing.List[Entity] = None):
+    def __init__(self, entities: list[type[Entity]] = None):
         if entities is None:
             self.entities = []
         else:
             self.entities = entities
 
     def do_step(self, surface_to_draw: pygame.Surface = None):
-        running = []
-        for ent in self.entities:
-            for ins in ent.instances:
-                running.append(ins)
+        step_methods = 'step_before', 'step', 'step_after'
+        draw_methods = 'draw_before', 'draw', 'draw_after'
 
-        for ins in running: ins.do_step_before()
-        for ins in running: ins.do_step()
-        for ins in running: ins.do_step_after()
+        for m in step_methods:
+            for ent in self.entities:
+                for ins in ent.instances:
+                    getattr(ent, m)(ins)
         if surface_to_draw is not None:
-            for ins in running: ins.do_draw_before(surface_to_draw)
-            for ins in running: ins.do_draw(surface_to_draw)
-            for ins in running: ins.do_draw_after(surface_to_draw)
+            for m in draw_methods:
+                for ent in self.entities:
+                    for ins in ent.instances:
+                        getattr(ent, m)(ins, surface_to_draw)
 
     def start(self):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_room_start()
+                ent.room_start(ins, self)
 
     def end(self):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_room_end()
+                ent.room_end(ins, self)
 
     def do_mouse_moved(self, mousepos):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_mouse_moved(mousepos)
+                ent.mouse_move(ins, mousepos)
 
     def do_mouse_pressed(self, mousepos, buttonid):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_mouse_pressed(mousepos, buttonid)
+                ent.mouse_down(ins, mousepos, buttonid)
 
     def do_mouse_released(self, mousepos, buttonid):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_mouse_released(mousepos, buttonid)
+                ent.mouse_up(ins, mousepos, buttonid)
 
     def do_kb_pressed(self, buttonid):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_kb_pressed(buttonid)
+                ent.keyboard_down(ins, buttonid)
 
     def do_kb_released(self, buttonid):
         for ent in self.entities:
             for ins in ent.instances:
-                ins.do_kb_released(buttonid)
+                ent.keyboard_up(ins, buttonid)
 
 
 class rooms:
@@ -352,7 +336,7 @@ class Screen:
        | 0 - оконный режим
        | 1 - полноэкранный режим
        | 2 - смешанный режим (оконнный на весь экран)'''
-    def __init__(self, canvas_size: typing.Tuple[int, int], realscreen_size: typing.Tuple[int, int], fullscreen_mode: int = 0, resizable_mode: bool = True):
+    def __init__(self, canvas_size: tuple[int, int], realscreen_size: tuple[int, int], fullscreen_mode: int = 0, resizable_mode: bool = True):
         self.cs = self.cw, self.ch = canvas_size
         if fullscreen_mode == 2:
             self.ss = self.sw, self.sh = SCREENSIZE
@@ -396,10 +380,10 @@ class Screen:
     def get_resizable(self) -> bool:
         return self.rm
 
-    def get_canvas_size(self) -> typing.Tuple[int, int]:
+    def get_canvas_size(self) -> tuple[int, int]:
         return self.cs
 
-    def get_screen_size(self) -> typing.Tuple[int, int]:
+    def get_screen_size(self) -> tuple[int, int]:
         return self.ss
 
     def get_canvas_width(self) -> int:
@@ -438,13 +422,13 @@ class Screen:
     def get_screen_halfdiagonal(self) -> int:
         return self.sd2
 
-    def get_canvas_offset(self) -> typing.Tuple[int, int]:
+    def get_canvas_offset(self) -> tuple[int, int]:
         return self.canvas_offset
 
     def get_canvas_scale_level(self) -> float:
         return self.scale_level
 
-    def update_screen(self, size: typing.Tuple[int, int] = None, fullscreen_mode: int = None, resizable_mode: bool = None):
+    def update_screen(self, size: tuple[int, int] = None, fullscreen_mode: int = None, resizable_mode: bool = None):
         '''Обновить данные экрана. Значение None в аргументах означает сохранение предыдущего значения.'''
         if size is None:
             size = self.ss
@@ -487,7 +471,7 @@ class Screen:
         self.screen.fill('black')
         self.screen.blit(pygame.transform.scale(self.canvas, self.scaled_size), self.canvas_offset)
 
-    def get_mousepos_on_canvas(self, origin_mousepos: typing.Tuple[int, int]) -> typing.Tuple[float, float]:
+    def get_mousepos_on_canvas(self, origin_mousepos: tuple[int, int]) -> tuple[float, float]:
         mx, my = origin_mousepos
         ox, oy = self.canvas_offset
         return (mx - ox) / self.scale_level, (my - oy) / self.scale_level
