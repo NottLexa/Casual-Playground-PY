@@ -1,6 +1,6 @@
 '''
 NLE1 (NotLexaEngine 1) for Python 3.10+, Pygame 2.1+
-Version: 2.0.0
+Version: 2.0.1
 License: CC BY-NC-SA 4.0
 
 Version 2.0.0 replaced Entity as set of unlinked methods to Entity as metaclass and class for inheritance
@@ -144,6 +144,9 @@ def load_image(path):
 
 
 class MetaEntity(type):
+    '''Метакласс для Entity. Наследуется как метакласс у всех дочерних классов Entity.
+       Создан для того, чтобы каждый дочерний класс Entity получил собственный instances-список, без привязи к другим
+       Entity и без необходимости объявлять instances для каждого Entity.'''
     def __new__(cls, clsname, sup, attr):
         attr = attr.copy()
         attr['instances'] = list()
@@ -176,6 +179,8 @@ class Entity(metaclass=MetaEntity):
        keyboard_down(target: Instance, key: int) - событие, выполняемое при нажатии клавиши
        keyboard_up(target: Instance, key: int)   - событие, выполняемое при отпускании клавиши
     '''
+
+    instances = []
 
     @staticmethod
     def create(target):

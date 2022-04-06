@@ -27,7 +27,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #28
+  Alexey Kozhanov                                                                     #29
                                                                                DVLP BUILD
 ''')
 
@@ -573,16 +573,6 @@ class EntFieldBoard(engine.Entity):
             target.keys['rmb'] = setkey
 #endregion
 #region [FIELD STANDARD UI]
-def FieldSUI_draw_description_window(cellid: int):
-    cellname = idlist[cellid]
-    padding = 4*scale/100
-
-    name = render_font('default', fontsize_default, objdata[cellname]['name'], False, 'white')
-
-    surface = pygame.Surface((), pygame.SRCALPHA)
-
-    return surface
-
 class EntFieldSUI(engine.Entity):
     @staticmethod
     def create(target):
@@ -593,6 +583,12 @@ class EntFieldSUI(engine.Entity):
         target.window_spacing = 8*scale/100
         target.display_scale = 80*scale/100
         target.element_border = target.display_scale/4
+
+        target.desc_window_width = 256+128
+        target.desc_window_surface = pygame.Surface((0,0))
+        target.desc_window_id = -1
+        target.desc_window_show = False
+        target.desc_window_offset = (0,0)
 
     @staticmethod
     def step(target):
@@ -628,8 +624,12 @@ class EntFieldSUI(engine.Entity):
                     ci += 1
                     cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
                     pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, ds, ds))
-                    txt = render_font('default', fontsize_smaller, cut_string(obj['name'], 9), True, 'white')
+                    name_string = obj['localization'][loc]['name'] if loc in obj['localization'] else obj['name']
+                    txt = render_font('default', fontsize_smaller, cut_string(name_string, 9), True, 'white')
                     surface.blit(txt, (cx+(ds/2)+phase_offset-(txt.get_width()//2), cy+ds+(eb/2)))
+
+            if target.desc_window_show:
+                surface.blit(target.desc_window_surface, target.desc_window_offset)
 
     @staticmethod
     def keyboard_down(target, key: int):
@@ -640,21 +640,103 @@ class EntFieldSUI(engine.Entity):
                 target.show_menu = not target.show_menu
 
     @staticmethod
+    def mouse_move(target, mousepos: tuple[int, int]):
+        if target.show_all:
+            ci = EntFieldSUI.mouse_on_cell(target, mousepos)
+            if ci is not None:
+                if target.desc_window_id != (0, ci):
+                    target.desc_window_surface = EntFieldSUI.draw_desc_window(target, ci)
+                    target.desc_window_id = (0, ci)
+                target.desc_window_show = True
+                target.desc_window_offset = [x+16 for x in mousepos]
+            else:
+                target.desc_window_show = False
+
+    @staticmethod
     def mouse_down(target, mousepos: tuple[int, int], buttonid: int):
         if target.show_all:
-            ds = target.display_scale
-            eb = target.element_border
-            ws = target.window_spacing
-            global current_instrument
-            if buttonid == 1:
-                phase_offset = int(200 * target.show_step) - 200
-                inoneline = (target.cellmenu_width-ws)//(ds+eb)
-                mx, my = mousepos
-                detectwidth, detectheight = ds+eb, ds+fontsize_smaller+(1.5*eb)
-                ci = (mx-eb)//detectwidth + ((my-eb)//detectheight)*inoneline
-                cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
-                if (cx <= mx <= cx+detectwidth-eb) and (cy <= my <= cy+detectheight-eb):
+            ci = EntFieldSUI.mouse_on_cell(target, mousepos)
+            if ci is not None:
+                if buttonid == 1:
+                    global current_instrument
                     current_instrument = {'type': 'pencil', 'cell': int(ci), 'penciltype': False, 'scale': 1}
+
+    @staticmethod
+    def mouse_on_cell(target, mousepos: tuple[int, int]):
+        ds, eb, ws = target.display_scale, target.element_border, target.window_spacing
+        measure = int(target.cellmenu_width * 1.5)
+        phase_offset = int(measure * target.show_step) - measure
+        inoneline = (target.cellmenu_width - ws) // (ds + eb)
+        mx, my = mousepos
+        mx -= phase_offset
+        detectwidth, detectheight = ds + eb, ds + fontsize_smaller + (1.5 * eb)
+        ci = (mx - eb) // detectwidth + ((my - eb) // detectheight) * inoneline
+        cx, cy = ws + eb + (ds + eb) * (ci % inoneline), ws + eb + (ds + eb + fontsize_smaller) * (ci // inoneline)
+        if (cx <= mx <= cx + detectwidth - eb) and (cy <= my <= cy + detectheight - eb):
+            if (ci < len(idlist)):
+                return round(ci)
+
+    @staticmethod
+    def draw_desc_window(target, cellid: int):
+        cellname = idlist[cellid]
+        border = round(4*scale/100)
+        padding = round(8*scale/100)
+        divider = round(12*scale/100)
+        padding2 = padding*2
+        canvaswidth = target.desc_window_width-padding2
+        name_size = fontsize_big
+        description_size = fontsize_smaller
+        localization = objdata[cellname]['localization']
+        name_string = localization[loc]['name'] if loc in localization else objdata[cellname]['name']
+        desc_string = localization[loc]['desc'] if loc in localization else objdata[cellname]['desc']
+
+        border_color = 'gray30'
+        bg_color = pygame.Color(77, 77, 77, 127)
+
+        txt_name = render_font('default', name_size, name_string, True, 'white')
+        ratio = min(1, canvaswidth/txt_name.get_width())
+        txt_name = render_font('default', name_size*ratio, name_string, True, 'white')
+
+        lettersmemory = {}
+        desctext = desc_string
+        linewidth = 0
+        desclist: list[list[int, pygame.Surface]] = [[0]]
+        for i in range(len(desctext)):
+            if desctext[i] not in lettersmemory:
+                lettersmemory[desctext[i]] = render_font('default', description_size, desctext[i], True, 'white')
+            letter = lettersmemory[desctext[i]]
+            if linewidth + letter.get_width() > canvaswidth:
+                desclist.append([0])
+                linewidth = 0
+            desclist[-1][0] = max(desclist[-1][0], letter.get_height())
+            desclist[-1].append(letter)
+            linewidth += letter.get_width()
+
+
+        surface = pygame.Surface((target.desc_window_width,
+                                  txt_name.get_height()+divider+padding2+sum([x[0] for x in desclist])),
+                                 pygame.SRCALPHA)
+        pygame.draw.rect(surface, bg_color,
+                         (0, 0, surface.get_width(), surface.get_height()), 0, 8)
+        pygame.draw.rect(surface, border_color,
+                         (0, 0, surface.get_width(), surface.get_height()), border, 8)
+        surface.blit(txt_name, (padding, padding))
+
+        pygame.draw.line(surface, border_color,
+                         (padding, padding + txt_name.get_height() + divider//2),
+                         (target.desc_window_width - padding, padding + txt_name.get_height() + divider//2),
+                         border)
+
+        y = padding + txt_name.get_height() + divider
+        for line in desclist:
+            x = padding
+            maxh, *lettersmemory = line
+            for letter in lettersmemory:
+                surface.blit(letter, (x, y))
+                x += letter.get_width()
+            y += maxh
+
+        return surface
 #endregion
 #endregion
 
