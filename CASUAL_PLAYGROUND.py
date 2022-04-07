@@ -27,7 +27,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #29
+  Alexey Kozhanov                                                                     #30
                                                                                DVLP BUILD
 ''')
 
@@ -171,31 +171,6 @@ for moddir in allmods:
     idlist.extend(mod)
     objdata.update(mod)
 
-'''for m in os.listdir(corefolder):
-    path = ntpath.join(corefolder, m)
-    if ntpath.isfile(path):
-        if path[-4:] == '.mod':
-            with open(path, 'r', encoding='utf8') as f:
-                moddata = comp.get(f.read())
-            modname = m[:-4]
-            moddata['author'] = 'Casual Playground'
-            moddata['official'] = 1
-            objdata[modname] = moddata
-            idlist.append(modname)
-
-for folder in os.listdir(modsfolder):
-    currentmodfolder = ntpath.join(modsfolder, folder)
-    for m in currentmodfolder:
-        path = ntpath.join(currentmodfolder, m)
-        if ntpath.isfile(path):
-            if path[-4:] == '.mod':
-                with open(path, 'r', encoding='utf8') as f:
-                    moddata = comp.get(f.read())
-                modname = m[:-4]
-                moddata['author'] = folder
-                moddata['official'] = 0
-                objdata[modname] = moddata
-                idlist.append(modname)'''
 print(idlist, list(enumerate(idlist)))
 print(engine.recursive_iterable(objdata, 0, 2, {dict: (True, '{', '}'),
                                                 tuple: (False, '(', ')'),
@@ -579,16 +554,43 @@ class EntFieldSUI(engine.Entity):
         target.show_step = 0.0
         target.show_menu = False
         target.show_all = True
-        target.cellmenu_width = 512*scale/100
-        target.window_spacing = 8*scale/100
-        target.display_scale = 80*scale/100
-        target.element_border = target.display_scale/4
+        en = target.element_number = 5
+        ws = target.window_spacing = round(8*scale/100)
+        ds = target.display_scale = round(80*scale/100)
+        eb = target.element_border = round(target.display_scale/4)
+        target.cellmenu_width = ws + en*(ds + eb) + eb
 
         target.desc_window_width = 256+128
         target.desc_window_surface = pygame.Surface((0,0))
         target.desc_window_id = -1
         target.desc_window_show = False
         target.desc_window_offset = (0,0)
+
+        target.cell_window_surface = pygame.Surface((target.cellmenu_width, screen.get_canvas_height() - 2*ws),
+                                                    pygame.SRCALPHA)
+
+        alphabg = pygame.Surface(target.cell_window_surface.get_size(), pygame.SRCALPHA)
+        pygame.draw.rect(alphabg, 'gray10',
+                         (ws, ws, target.cellmenu_width - ws, target.cell_window_surface.get_height() - 2*ws), 0, 5)
+        pygame.draw.rect(alphabg, 'gray50',
+                         (ws, ws, target.cellmenu_width - ws, target.cell_window_surface.get_height() - 2*ws), ws//2, 5)
+
+        alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
+
+        target.cell_window_surface.blit(alphabg, (0, 0))
+
+        inoneline = (target.cellmenu_width - ws) // (ds + eb)
+        ci = -1
+        for o in idlist:
+            obj = objdata[o]
+            if obj['type'] == 'CELL':
+                ci += 1
+                cx, cy = ws + eb + (ds + eb) * (ci % inoneline), ws + eb + (ds + eb + fontsize_smaller) * (
+                            ci // inoneline)
+                pygame.draw.rect(target.cell_window_surface, obj['notexture'], (cx, cy, ds, ds))
+                name_string = obj['localization'][loc]['name'] if loc in obj['localization'] else obj['name']
+                txt = render_font('default', fontsize_smaller, cut_string(name_string, 9), True, 'white')
+                target.cell_window_surface.blit(txt, (cx + (ds / 2) - (txt.get_width() // 2), cy + ds + (eb / 2)))
 
     @staticmethod
     def step(target):
@@ -609,24 +611,7 @@ class EntFieldSUI(engine.Entity):
             measure = int(target.cellmenu_width*1.5)
             phase_offset = int(measure*target.show_step)-measure
 
-            alphabg = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-            pygame.draw.rect(alphabg, 'gray10', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 0, 5)
-            pygame.draw.rect(alphabg, 'gray50', (ws+phase_offset, ws, target.cellmenu_width, surface.get_height() - 2*ws), 1, 5)
-
-            alphabg.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
-
-            surface.blit(alphabg, (0, 0))
-            inoneline = (target.cellmenu_width-ws)//(ds+eb)
-            ci = -1
-            for o in idlist:
-                obj = objdata[o]
-                if obj['type'] == 'CELL':
-                    ci += 1
-                    cx, cy = ws+eb+(ds+eb)*(ci%inoneline), ws+eb+(ds+eb+fontsize_smaller)*(ci//inoneline)
-                    pygame.draw.rect(surface, obj['notexture'], (cx+phase_offset, cy, ds, ds))
-                    name_string = obj['localization'][loc]['name'] if loc in obj['localization'] else obj['name']
-                    txt = render_font('default', fontsize_smaller, cut_string(name_string, 9), True, 'white')
-                    surface.blit(txt, (cx+(ds/2)+phase_offset-(txt.get_width()//2), cy+ds+(eb/2)))
+            surface.blit(target.cell_window_surface, (phase_offset, 0))
 
             if target.desc_window_show:
                 surface.blit(target.desc_window_surface, target.desc_window_offset)
@@ -759,20 +744,21 @@ engine.rooms.change_current_room(room_field)
 game_running = True
 while game_running:
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:  # выход
-            game_running = False
-        elif event.type == pygame.VIDEORESIZE:  # изменение размера экрана
-            screen.update_screen((event.w, event.h))
-        elif event.type == pygame.MOUSEMOTION:
-            engine.rooms.current_room.do_mouse_moved(screen.get_mousepos_on_canvas(event.pos))
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            engine.rooms.current_room.do_mouse_pressed(screen.get_mousepos_on_canvas(event.pos), event.button)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            engine.rooms.current_room.do_mouse_released(screen.get_mousepos_on_canvas(event.pos), event.button)
-        elif event.type == pygame.KEYDOWN:
-            engine.rooms.current_room.do_kb_pressed(event.key)
-        elif event.type == pygame.KEYUP:
-            engine.rooms.current_room.do_kb_released(event.key)
+        match (event.type):
+            case pygame.QUIT:  # выход
+                game_running = False
+            case pygame.VIDEORESIZE:  # изменение размера экрана
+                screen.update_screen((event.w, event.h))
+            case pygame.MOUSEMOTION:
+                engine.rooms.current_room.do_mouse_moved(screen.get_mousepos_on_canvas(event.pos))
+            case pygame.MOUSEBUTTONDOWN:
+                engine.rooms.current_room.do_mouse_pressed(screen.get_mousepos_on_canvas(event.pos), event.button)
+            case pygame.MOUSEBUTTONUP:
+                engine.rooms.current_room.do_mouse_released(screen.get_mousepos_on_canvas(event.pos), event.button)
+            case pygame.KEYDOWN:
+                engine.rooms.current_room.do_kb_pressed(event.key)
+            case pygame.KEYUP:
+                engine.rooms.current_room.do_kb_released(event.key)
 
     screen.get_canvas().fill('black')
     engine.rooms.current_room.do_step(screen.get_canvas())
