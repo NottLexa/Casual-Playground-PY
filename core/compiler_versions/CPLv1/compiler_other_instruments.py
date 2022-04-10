@@ -23,8 +23,11 @@ def split_args1(code: str, start: int = 0, end: int | str = None):
             if write != '':
                 args.append(write)
                 write = ''
-        elif code[l] == '"':
-            i0, i1, string, concl, cur = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK)
+        elif code[l] in '\'"':
+            if code[l] == '"':
+                i0, i1, string, concl, cur = cep.string_embedded(code, l, cep.DOUBLEQUOTEMARK, True)
+            else:
+                i0, i1, string, concl, cur = cep.string_embedded(code, l, cep.SINGLEQUOTEMARK, True)
             if concl != CompilerConclusion(0):
                 return [], concl, cur
             l = i1 - 1

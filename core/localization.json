@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "localization":
+  {
+    "from":
+    {
+      "__usage": "'from' string in cell description window, capitalized",
+      "__noloc": "From",
+      "rus": "Из"
+    },
+    "author":
+    {
+    "__usage": "'author' string in cell description window, capitalized",
+    "__noloc": "Author",
+    "rus": "Автор"
+    }
+  }
+}

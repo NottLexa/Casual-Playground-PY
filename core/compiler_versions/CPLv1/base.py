@@ -58,7 +58,7 @@ def chapter_localization(code: str, startl: int):
         l += 1
         while code[l:l + 4] == '    ':
             l += 4
-            write, concl, cur = split_args1(code, l)
+            write, concl, cur = split_args1(code, l, '\n')
             if not correct_concl(concl):
                 return 0, {}, concl, cur
             ret_localization[write[0]] = {}

@@ -1,11 +1,11 @@
 VERSION 1
 
-CELL "GOL: Dead cell" "A dead cell from John Conway's Game of Life."
+CELL "GOL: Live cell" "A live cell from John Conway's Game of Life."
 
 NOTEXTURE 238 238 238
 
 LOCALIZATION
-    rus "ИЖ: Мёртвая клетка" "Мёртвая клетка из игры \"Жизнь\" Джона Конвея."
+    rus "ИЖ: Живая клетка" "Живая клетка из игры \"Жизнь\" Джона Конвея."
 
 SCRIPT CREATE
     _mincx = :max(-1, -__X)

@@ -7,7 +7,7 @@ EOC_index = {EOC[x]:x for x in range(len(EOC))}
 SET_EOC = set(EOC)
 BS = '\\'
 
-def string_embedded_quotemark(code: str, start: int, sepsym: str):
+def string_embedded_quotemark(code: str, start: int, sepsym: str, save_escapes: bool = False):
     indexes = [-1, -1]
     l = start
     write = ''
@@ -19,10 +19,10 @@ def string_embedded_quotemark(code: str, start: int, sepsym: str):
         if count > 0:
             if code[l] == BS:
                 if code[l + 1] == BS:
-                    write += BS
+                    write += BS if not save_escapes else BS+BS
                     l += 2
                 elif code[l + 1] == sepsym:
-                    write += sepsym
+                    write += sepsym if not save_escapes else BS+sepsym
                     l += 2
                 else:
                     return 0, 0, '', CompilerConclusion(202), CompilerCursor(code, l)
@@ -73,18 +73,18 @@ def string_embedded_brackets(code: str, start: int, sepsym: str):
         return 0, 0, '', CompilerConclusion(201), CompilerCursor(code, start)
     return indexes[0], indexes[1]+1, write, CompilerConclusion(0), CompilerCursor(None)
 
-def string_embedded(code: str, start: int, separationtype: int):
+def string_embedded(code: str, start: int, separationtype: int, save_escapes: bool = False):
     sepsym = ['()', '[]', '{}', '"', "'"][separationtype]
     if code[start] not in sepsym[0]:
         return 0, 0, '', CompilerConclusion(304), None
     type = (separationtype in [DOUBLEQUOTEMARK, SINGLEQUOTEMARK]) # False - brackets, True - quote marks
     if type:
-        return string_embedded_quotemark(code, start, sepsym)
+        return string_embedded_quotemark(code, start, sepsym, save_escapes)
     else:
         return string_embedded_brackets(code, start, sepsym)
 
-def string_only_embedded(code: str, start: int, separationtype: int):
-    ret = string_embedded(code, start, separationtype)
+def string_only_embedded(code: str, start: int, separationtype: int, save_escapes: bool = False):
+    ret = string_embedded(code, start, separationtype, save_escapes)
     if correct_concl(ret[3]):
         return ret[0], ret[1], ret[2][1:-1], ret[3], CompilerCursor(None)
     else:
