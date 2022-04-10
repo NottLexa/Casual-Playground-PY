@@ -28,7 +28,7 @@ print('''
                                                   __/ | __/ |                            
                                                  |___/ |___/                             
 by:                                                                            version:
-  Alexey Kozhanov                                                                     #31
+  Alexey Kozhanov                                                                     #32
                                                                                DVLP BUILD
 ''')
 
@@ -510,7 +510,7 @@ class EntFieldBoard(engine.Entity):
         target.viewy = (target.viewscale*target.board_height//2) - (HEIGHT2)
 
     @staticmethod
-    def FieldBoard_zoom_out(target, mul):
+    def zoom_out(target, mul):
         oldvs = target.viewscale
         target.viewscale = engine.clamp(target.viewscale - engine.clamp(int(0.2 * mul * target.viewscale), 1, 64), 2,
                                         64)
@@ -522,7 +522,7 @@ class EntFieldBoard(engine.Entity):
         target.surfaces['board'] = EntFieldBoard.draw_board(target)
 
     @staticmethod
-    def FieldBoard_zoom_in(target, mul):
+    def zoom_in(target, mul):
         oldvs = target.viewscale
         target.viewscale = engine.clamp(target.viewscale + engine.clamp(int(0.2 * mul * target.viewscale), 1, 64),
                                         2, 64)
@@ -534,7 +534,7 @@ class EntFieldBoard(engine.Entity):
         target.surfaces['board'] = EntFieldBoard.draw_board(target)
 
     @staticmethod
-    def FieldBoard_do_instrument(target):
+    def do_instrument(target):
         bordersize = round(target.viewscale * cellbordersize)
         cellsize = bordersize + target.viewscale
         mx, my = screen.get_mousepos_on_canvas(pygame.mouse.get_pos())
